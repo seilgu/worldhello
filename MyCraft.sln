@@ -1,0 +1,26 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual C++ Express 2010
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MyCraft", "MyCraft\MyCraft.vcxproj", "{5D06347E-FB5A-4B51-B0A8-B9FEF4E73D5A}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "terrain_generator", "terrain_generator\terrain_generator.vcxproj", "{62CBE83D-4328-40BE-9575-F5F14E6D8BCC}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{5D06347E-FB5A-4B51-B0A8-B9FEF4E73D5A}.Debug|Win32.ActiveCfg = Debug|Win32
+		{5D06347E-FB5A-4B51-B0A8-B9FEF4E73D5A}.Debug|Win32.Build.0 = Debug|Win32
+		{5D06347E-FB5A-4B51-B0A8-B9FEF4E73D5A}.Release|Win32.ActiveCfg = Release|Win32
+		{5D06347E-FB5A-4B51-B0A8-B9FEF4E73D5A}.Release|Win32.Build.0 = Release|Win32
+		{62CBE83D-4328-40BE-9575-F5F14E6D8BCC}.Debug|Win32.ActiveCfg = Debug|Win32
+		{62CBE83D-4328-40BE-9575-F5F14E6D8BCC}.Debug|Win32.Build.0 = Debug|Win32
+		{62CBE83D-4328-40BE-9575-F5F14E6D8BCC}.Release|Win32.ActiveCfg = Release|Win32
+		{62CBE83D-4328-40BE-9575-F5F14E6D8BCC}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
