@@ -12,48 +12,6 @@ inline float2 get_texture_coord(int tx) {
 	return ff;
 }
 
-void Render::RenderChunk(map_chunk *chk, float3 pos, float3 dir) {
-	float3 rel;
-	float3 unit_x(1, 0, 0);
-	float3 unit_y(0, 1, 0);
-	float3 unit_z(0, 0, 1);
-	
-	int type;
-	for (int i=0; i<CHUNK_W; i++) {
-		for (int j=0; j<CHUNK_L; j++) {
-			for (int k=0; k<CHUNK_H; k++) {
-				type = (chk->blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i]).type;
-				if (type != Block::GRASS) continue;
-
-				rel.x = (chk->id.x*CHUNK_W + i)*BLOCK_LEN - pos.x;
-				rel.y = (chk->id.y*CHUNK_L + j)*BLOCK_LEN - pos.y;
-				rel.z = (chk->id.z*CHUNK_H + k)*BLOCK_LEN - pos.z;
-
-				// front side culling
-				if (dot_prod(rel, dir) < 0) continue;
-
-				// frustum culling
-
-				
-				if (rel.x > 0)
-					DrawFaceSimple(i, j, k, type, NX);
-				else
-					DrawFaceSimple(i, j, k, type, PX);
-
-				if (rel.y > 0)
-					DrawFaceSimple(i, j, k, type, NY);
-				else
-					DrawFaceSimple(i, j, k, type, PY);
-
-				if (rel.z > 0)
-					DrawFaceSimple(i, j, k, type, NZ);
-				else
-					DrawFaceSimple(i, j, k, type, PZ);
-			}
-		}
-	}
-}
-
 void Render::DrawFaceSimple(int i, int j, int k, int type, int dir) {
 	if (type == 0) return;
 
@@ -127,24 +85,11 @@ void Render::DrawFaceSimple(int i, int j, int k, int type, int dir) {
 
 extern DWORD tick1, tick2;
 
-void Render::CheckVBOSupport() {
-	glGenBuffersARB = (PFNGLGENBUFFERSARBPROC)wglGetProcAddress("glGenBuffersARB");
-	glBindBufferARB = (PFNGLBINDBUFFERARBPROC)wglGetProcAddress("glBindBufferARB");
-	glBufferDataARB = (PFNGLBUFFERDATAARBPROC)wglGetProcAddress("glBufferDataARB");
-	glBufferSubDataARB = (PFNGLBUFFERSUBDATAARBPROC)wglGetProcAddress("glBufferSubDataARB");
-	glDeleteBuffersARB = (PFNGLDELETEBUFFERSARBPROC)wglGetProcAddress("glDeleteBuffersARB");
-	glGetBufferParameterivARB = (PFNGLGETBUFFERPARAMETERIVARBPROC)wglGetProcAddress("glGetBufferParameterivARB");
-	glMapBufferARB = (PFNGLMAPBUFFERARBPROC)wglGetProcAddress("glMapBufferARB");
-	glUnmapBufferARB = (PFNGLUNMAPBUFFERARBPROC)wglGetProcAddress("glUnmapBufferARB");
-	
-	if(glGenBuffersARB && glBindBufferARB && glBufferDataARB && glBufferSubDataARB &&
-           glMapBufferARB && glUnmapBufferARB && glDeleteBuffersARB && glGetBufferParameterivARB)
-	{} else {
-		MessageBox(0, "VBO not supported", "haha", 0);
-    }
-}
+
 
 Render::~Render() {
+	KillWorkThread();
+
 	render_list::iterator it;
 
 	for (it = r_chunks.begin(); it != r_chunks.end(); ) {
@@ -167,6 +112,7 @@ void Render::DeleteChunk(render_chunk *chk) {
 void Render::CalculateVisible(int3 id) {
 	if (s_World == 0) {
 		MessageBox(0, "s_World NULL", "HAHAH", 0);
+		return;
 	}
 
 	chunk_list chunks = s_World->world_map.m_chunks;
@@ -192,7 +138,7 @@ void Render::CalculateVisible(int3 id) {
 
 		map_side[w] = (tmp == chunks.end() ? 0 : (*tmp).second);
 		if (map_side[w] == 0 || map_side[w]->loaded == 0 || map_side[w]->failed == 1 || map_side[w]->unneeded == 1) {
-				map_side[w] = 0;
+			map_side[w] = 0;
 		}
 	}
 
@@ -256,22 +202,55 @@ void Render::CalculateVisible(int3 id) {
 	}
 }
 
+void Render::GetTextureCoordinates(short int type, int dir, float2 &dst) {
+	// decide texture coordinates corr. face & type
+	GLuint side_texture;
+	switch (type) {
+	case Block::CRATE: // Draw a crate
+		side_texture = TextureMgr::CRATE;
+		break;
+	case Block::GRASS: // Draw a crate
+		switch (dir) {
+		case PZ: side_texture = TextureMgr::GRASS_TOP; break;
+		case NZ: side_texture = TextureMgr::GRASS_BUTTOM; break;
+		default: side_texture = TextureMgr::GRASS_SIDE; break;
+		}
+		break;
+	case Block::SOIL:
+		side_texture = TextureMgr::SOIL;
+		break;
+	default: break;
+	}
+
+	// calculate and set coordinates of textures
+	float csize = 1/16.0f;
+	dst = get_texture_coord(side_texture);
+}
+
 void Render::LoadChunk(render_chunk *ren_chk, map_chunk *map_chk, int urgent) {
 	if (urgent == 0) {
 		render_pair pair(ren_chk, map_chk);
-		m_Thread.PushJobs(pair);
+		m_Thread->PushJobs(pair);
 		return;
 	}  //  Doesn't work, so disable this feature
 
-	if (ren_chk == 0 || map_chk == 0 || ren_chk->id != map_chk->id)
-		return;
-
-	if (map_chk->loaded == 0 || map_chk->failed == 1 || map_chk->unneeded == 1)
+	if (ren_chk == 0)
 		return;
 
 	ren_chk->failed = 0;
 	ren_chk->loaded = 0;
 	ren_chk->unneeded = 0;
+
+	if (map_chk == 0 || ren_chk->id != map_chk->id) {
+		ren_chk->failed = 1;
+		return;
+	}
+
+	if (map_chk->loaded == 0 || map_chk->failed == 1 || map_chk->unneeded == 1) {
+		ren_chk->failed = 1;
+		return;
+	}
+
 
 	// calculate how many blocks we need to store in VBO and its required size
 	CalculateVisible(map_chk->id);
@@ -280,7 +259,6 @@ void Render::LoadChunk(render_chunk *ren_chk, map_chunk *map_chk, int urgent) {
 	for (int i=0; i<CHUNK_W; i++) {
 		for (int j=0; j<CHUNK_L; j++) {
 			for (int k=0; k<CHUNK_H; k++) {
-				//if (map_chk->blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].type == Block::GRASS) {
 				if (map_chk->blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden == 0) {
 					size++;
 				}
@@ -290,12 +268,13 @@ void Render::LoadChunk(render_chunk *ren_chk, map_chunk *map_chk, int urgent) {
 
 	ren_chk->num_faces = size*6;
 
-	// size = #CUBES, required size = #CUBE*6*( (2+3)*4)
+	// size = #CUBES, required size = #CUBE*6*( (2+3)*4 )
 	GLfloat *vertices = 0;
 	vertices = new GLfloat[size*6*20];
 
 	if (vertices == 0) {
 		MessageBox(0, "VERTICES ALLOC FAILED", "haha", 0);
+		ren_chk->failed = 1;
 		return;
 	}
 
@@ -309,37 +288,12 @@ void Render::LoadChunk(render_chunk *ren_chk, map_chunk *map_chk, int urgent) {
 
 				int type = map_chk->blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].type;
 
-				//if (type != Block::GRASS) // only draw GRASS type for now
-				//	continue;
-				// interlaced array : (texcoord, vertex)*4 per QUAD
-
 				for (int w=0; w<6; w++) { // 6 faces
-
-					// decide texture coordinates corr. face & type
-					GLuint side_texture;
-					switch (type) {
-					case Block::CRATE: // Draw a crate
-						side_texture = TextureMgr::CRATE;
-						break;
-					case Block::GRASS: // Draw a crate
-						switch (w) {
-						case PZ: side_texture = TextureMgr::GRASS_TOP; break;
-						case NZ: side_texture = TextureMgr::GRASS_BUTTOM; break;
-						default: side_texture = TextureMgr::GRASS_SIDE; break;
-						}
-						break;
-					case Block::SOIL:
-						side_texture = TextureMgr::SOIL;
-						break;
-					default: break;
-					}
-
-					// calculate and set coordinates of textures
 					float2 coord;
+					GetTextureCoordinates(type, w, coord);
 					float csize = 1/16.0f;
-					coord = get_texture_coord(side_texture);
 
-					// texture coordinates are in the same order in each face
+					// texture coordinates are in the same order in each face except NX
 					if (w == NX) {
 						vertices[count*20 + 0] = coord.x;
 						vertices[count*20 + 1] = coord.y;
@@ -515,11 +469,11 @@ void Render::DiscardUnneededChunks(float3 pos, float3 dir, World *world) {
 
 		if (chunks->find(id) == chunks->end()) { // in render but no in map -> unneeded
 			DeleteChunk(renderchk);
-			r_chunks.erase(render_it++);
+			render_it = r_chunks.erase(render_it);
 		}
 		else if (renderchk->failed == 1 || renderchk->unneeded == 1) { // check flags
 			DeleteChunk(renderchk);
-			r_chunks.erase(render_it++);
+			render_it = r_chunks.erase(render_it);
 		}
 		else {
 			++render_it;
@@ -535,7 +489,7 @@ void Render::PrintChunkStatistics(char *buffer) {
 		total++;
 	}
 
-	sprintf(buffer, "r_total:%d", total);
+	sprintf_s(buffer, 16, "r_total:%d", total); // overkill
 }
 
 void Render::LoadNeededChunks(float3 pos, float3 dir, World *world) {
@@ -563,16 +517,21 @@ void Render::LoadNeededChunks(float3 pos, float3 dir, World *world) {
 			renderchk->loaded = 0;
 			renderchk->failed = 0;
 			renderchk->unneeded = 0;
-
-			LoadChunk(renderchk, (*map_it).second, 1); // NOT TRYING MULTITHREADING !!!!
+			
+			// always insert first
 			r_chunks.insert( std::pair<int3, render_chunk *>(id, renderchk) );
+			LoadChunk(renderchk, (*map_it).second, 1); // NOT TRYING MULTITHREADING !!!!
 		}
 	}
 }
 
-void Render::RenderChunk2(render_chunk *tmp, float3 pos, float3 dir) {
+void Render::RenderChunk(render_chunk *tmp, float3 pos, float3 dir) {
 	if (tmp == 0 || tmp->failed == 1 || tmp->loaded == 0 || tmp->unneeded == 1)
 		return;
+
+	int3 id((int)floor(pos.x / (BLOCK_LEN*CHUNK_W)), 
+		(int)floor(pos.y / (BLOCK_LEN*CHUNK_L)), 
+		(int)floor(pos.z / (BLOCK_LEN*CHUNK_H))); // Currently standing on this chunk
 
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, tmp->vbo);
 	
@@ -582,7 +541,57 @@ void Render::RenderChunk2(render_chunk *tmp, float3 pos, float3 dir) {
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
 }
 
-void Render::DrawScene2(float3 pos, float3 dir, float dist) {
+// No VBO version
+
+void Render::RenderChunk0(map_chunk *chk, float3 pos, float3 dir) {
+	float3 rel;
+	float3 unit_x(1, 0, 0);
+	float3 unit_y(0, 1, 0);
+	float3 unit_z(0, 0, 1);
+	
+	int type;
+	for (int i=0; i<CHUNK_W; i++) {
+		for (int j=0; j<CHUNK_L; j++) {
+			for (int k=0; k<CHUNK_H; k++) {
+				type = (chk->blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i]).type;
+				if (type == Block::NUL) continue;
+				if (chk->blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden == 1)
+					continue;
+
+				rel.x = (chk->id.x*CHUNK_W + i)*BLOCK_LEN - pos.x;
+				rel.y = (chk->id.y*CHUNK_L + j)*BLOCK_LEN - pos.y;
+				rel.z = (chk->id.z*CHUNK_H + k)*BLOCK_LEN - pos.z;
+
+				// front side culling
+				if (dot_prod(rel, dir) < 0) continue;
+
+				// frustum culling
+
+				
+				if (rel.x > 0)
+					DrawFaceSimple(i, j, k, type, NX);
+				else
+					DrawFaceSimple(i, j, k, type, PX);
+
+				if (rel.y > 0)
+					DrawFaceSimple(i, j, k, type, NY);
+				else
+					DrawFaceSimple(i, j, k, type, PY);
+
+				if (rel.z > 0)
+					DrawFaceSimple(i, j, k, type, NZ);
+				else
+					DrawFaceSimple(i, j, k, type, PZ);
+			}
+		}
+	}
+}
+
+
+/*************************************************************************
+	Decides what to draw, how much to draw, from given perspective
+*************************************************************************/
+void Render::DrawScene(float3 pos, float3 dir, float dist) {
 
 	glPushMatrix();	
 
@@ -598,10 +607,7 @@ void Render::DrawScene2(float3 pos, float3 dir, float dist) {
 		int3 id = (*it).first;
 		render_chunk *tmp = (*it).second;
 
-		if (tmp == 0)
-			continue;
-
-		if (tmp->failed == 1 || tmp->loaded == 0 || tmp->unneeded == 1)
+		if (tmp == 0 || tmp->failed == 1 || tmp->loaded == 0 || tmp->unneeded == 1)
 			continue;
 
 		// calculate to world coordinates
@@ -610,17 +616,17 @@ void Render::DrawScene2(float3 pos, float3 dir, float dist) {
 		id.z *= CHUNK_H;
 		
 		glTranslatef((GLfloat)id.x, (GLfloat)id.y, (GLfloat)id.z);
-		RenderChunk2(tmp, pos, dir);
+		RenderChunk(tmp, pos, dir);
 		glTranslatef(-(GLfloat)id.x, -(GLfloat)id.y, -(GLfloat)id.z);
 	}
 
 	glPopMatrix();
 
 }
-/*************************************************************************
-	Decides what to draw, how much to draw, from given perspective
-*************************************************************************/
-void Render::DrawScene(float3 pos, float3 dir, float dist) {
+
+// No VBO version
+
+void Render::DrawScene0(float3 pos, float3 dir, float dist) {
 
 	glPushMatrix();	
 
@@ -645,12 +651,13 @@ void Render::DrawScene(float3 pos, float3 dir, float dist) {
 		id.z *= CHUNK_H;
 		
 		glTranslatef((GLfloat)id.x, (GLfloat)id.y, (GLfloat)id.z);
-		RenderChunk(tmp, pos, dir);
+		RenderChunk0(tmp, pos, dir);
 		glTranslatef(-(GLfloat)id.x, -(GLfloat)id.y, -(GLfloat)id.z);
 	}
 
 	glPopMatrix();
 }
+
 
 /*****************************************************
 	Multithreading will NOT WORK with OpenGL !!!!
@@ -658,11 +665,14 @@ void Render::DrawScene(float3 pos, float3 dir, float dist) {
 
 
 void Render::RenderChunkThread::threadLoop(void *param) {
+	// should get here very early
+	wglMakeCurrent(hDC, hRC2);
+	
 	Render::RenderChunkThread *self = (Render::RenderChunkThread *)param;
 	while (self->active) {
 		// peek jobs
 		if (self->jobs.empty()) {
-			Sleep(100);
+			Sleep(20);
 		}
 		else {
 			// process jobs
@@ -678,233 +688,7 @@ void Render::RenderChunkThread::threadLoadChunk(render_pair pair, Render::Render
 	render_chunk *ren_chk = pair.first;
 	map_chunk *map_chk = pair.second;
 
-	if (ren_chk == 0 || map_chk == 0 || ren_chk->id != map_chk->id)
-		return;
-
-	ren_chk->loaded = 0;
-	ren_chk->failed = 0;
-	ren_chk->unneeded = 0;
-
-	// calculate how many blocks we need to store in VBO and its required size
-	int size = 0;
-	for (int i=0; i<CHUNK_W; i++) {
-		for (int j=0; j<CHUNK_L; j++) {
-			for (int k=0; k<CHUNK_H; k++) {
-				if (map_chk->blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].type == Block::GRASS) {
-					size++;
-				}
-			}
-		}
-	}
-
-	ren_chk->num_faces = size*6;
-
-	// size = #CUBES, required size = #CUBE*6*( (2+3)*4)
-	GLfloat *vertices = 0;
-	vertices = new GLfloat[size*6*20];
-
-	if (vertices == 0) {
-		ren_chk->failed = 1;
-		MessageBox(0, "VERTICES ALLOC FAILED", "haha", 0);
-		return;
-	}
-
-	int count = 0;
-	// now generate vertex & quads
-	for (int i=0; i<CHUNK_W; i++) {
-		for (int j=0; j<CHUNK_L; j++) {
-			for (int k=0; k<CHUNK_H; k++) {
-				int type = map_chk->blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].type;
-
-				if (type != Block::GRASS) // only draw GRASS type for now
-					continue;
-				// interlaced array : (texcoord, vertex)*4 per QUAD
-
-				for (int w=0; w<6; w++) { // 6 faces
-
-					// decide texture coordinates corr. face & type
-					GLuint side_texture;
-					switch (type) {
-					case Block::CRATE: // Draw a crate
-						side_texture = TextureMgr::CRATE;
-						break;
-					case Block::GRASS: // Draw a crate
-						switch (w) {
-						case PZ: side_texture = TextureMgr::GRASS_TOP; break;
-						case NZ: side_texture = TextureMgr::GRASS_BUTTOM; break;
-						default: side_texture = TextureMgr::GRASS_SIDE; break;
-						}
-						break;
-					case Block::SOIL:
-						side_texture = TextureMgr::SOIL;
-						break;
-					default: break;
-					}
-
-					// calculate and set coordinates of textures
-					float2 coord;
-					float csize = 1/16.0f;
-					coord = get_texture_coord(side_texture);
-
-					// texture coordinates are in the same order in each face
-					if (w == NX) {
-						vertices[count*20 + 0] = coord.x;
-						vertices[count*20 + 1] = coord.y;
-						vertices[count*20 + 5] = coord.x;
-						vertices[count*20 + 6] = coord.y+csize;
-						vertices[count*20 + 10] = coord.x+csize;
-						vertices[count*20 + 11] = coord.y+csize;
-						vertices[count*20 + 15] = coord.x+csize;
-						vertices[count*20 + 16] = coord.y;
-					}
-					else {
-						vertices[count*20 + 0] = coord.x;
-						vertices[count*20 + 1] = coord.y;
-						vertices[count*20 + 5] = coord.x+csize;
-						vertices[count*20 + 6] = coord.y;
-						vertices[count*20 + 10] = coord.x+csize;
-						vertices[count*20 + 11] = coord.y+csize;
-						vertices[count*20 + 15] = coord.x;
-						vertices[count*20 + 16] = coord.y+csize;
-					}
-					// now setup vertex coordinates of each face
-					switch (w) {
-					case PZ:
-						vertices[count*20 + 2] = 0.0f;
-						vertices[count*20 + 3] = 0.0f;
-						vertices[count*20 + 4] = 1.0f;
-
-						vertices[count*20 + 7] = 1.0f;
-						vertices[count*20 + 8] = 0.0f;
-						vertices[count*20 + 9] = 1.0f;
-
-						vertices[count*20 + 12] = 1.0f;
-						vertices[count*20 + 13] = 1.0f;
-						vertices[count*20 + 14] = 1.0f;
-
-						vertices[count*20 + 17] = 0.0f;
-						vertices[count*20 + 18] = 1.0f;
-						vertices[count*20 + 19] = 1.0f;
-						break;
-					case NZ:
-						vertices[count*20 + 2] = 1.0f;
-						vertices[count*20 + 3] = 0.0f;
-						vertices[count*20 + 4] = 0.0f;
-
-						vertices[count*20 + 7] = 0.0f;
-						vertices[count*20 + 8] = 0.0f;
-						vertices[count*20 + 9] = 0.0f;
-
-						vertices[count*20 + 12] = 0.0f;
-						vertices[count*20 + 13] = 1.0f;
-						vertices[count*20 + 14] = 0.0f;
-
-						vertices[count*20 + 17] = 1.0f;
-						vertices[count*20 + 18] = 1.0f;
-						vertices[count*20 + 19] = 0.0f;
-						break;
-					case PY:
-						vertices[count*20 + 2] = 1.0f;
-						vertices[count*20 + 3] = 1.0f;
-						vertices[count*20 + 4] = 0.0f;
-
-						vertices[count*20 + 7] = 0.0f;
-						vertices[count*20 + 8] = 1.0f;
-						vertices[count*20 + 9] = 0.0f;
-
-						vertices[count*20 + 12] = 0.0f;
-						vertices[count*20 + 13] = 1.0f;
-						vertices[count*20 + 14] = 1.0f;
-
-						vertices[count*20 + 17] = 1.0f;
-						vertices[count*20 + 18] = 1.0f;
-						vertices[count*20 + 19] = 1.0f;
-						break;
-					case NY:
-						vertices[count*20 + 2] = 0.0f;
-						vertices[count*20 + 3] = 0.0f;
-						vertices[count*20 + 4] = 0.0f;
-
-						vertices[count*20 + 7] = 1.0f;
-						vertices[count*20 + 8] = 0.0f;
-						vertices[count*20 + 9] = 0.0f;
-
-						vertices[count*20 + 12] = 1.0f;
-						vertices[count*20 + 13] = 0.0f;
-						vertices[count*20 + 14] = 1.0f;
-
-						vertices[count*20 + 17] = 0.0f;
-						vertices[count*20 + 18] = 0.0f;
-						vertices[count*20 + 19] = 1.0f;
-						break;
-					case PX:
-						vertices[count*20 + 2] = 1.0f;
-						vertices[count*20 + 3] = 0.0f;
-						vertices[count*20 + 4] = 0.0f;
-
-						vertices[count*20 + 7] = 1.0f;
-						vertices[count*20 + 8] = 1.0f;
-						vertices[count*20 + 9] = 0.0f;
-
-						vertices[count*20 + 12] = 1.0f;
-						vertices[count*20 + 13] = 1.0f;
-						vertices[count*20 + 14] = 1.0f;
-
-						vertices[count*20 + 17] = 1.0f;
-						vertices[count*20 + 18] = 0.0f;
-						vertices[count*20 + 19] = 1.0f;
-						break;
-					case NX:
-						vertices[count*20 + 2] = 0.0f;
-						vertices[count*20 + 3] = 0.0f;
-						vertices[count*20 + 4] = 0.0f;
-
-						vertices[count*20 + 7] = 0.0f;
-						vertices[count*20 + 8] = 0.0f;
-						vertices[count*20 + 9] = 1.0f;
-
-						vertices[count*20 + 12] = 0.0f;
-						vertices[count*20 + 13] = 1.0f;
-						vertices[count*20 + 14] = 1.0f;
-
-						vertices[count*20 + 17] = 0.0f;
-						vertices[count*20 + 18] = 1.0f;
-						vertices[count*20 + 19] = 0.0f;
-						break;
-					}
-
-					// translate to relative position
-					for (int s=0; s<4; s++) {
-						vertices[count*20 + s*5 + 2] += (GLfloat)i;
-						vertices[count*20 + s*5 + 3] += (GLfloat)j;
-						vertices[count*20 + s*5 + 4] += (GLfloat)k;
-					}
-
-					// next face
-					count++;
-				}
-			}
-		}
-	}
-	
-	// Ahhhh!!!!                   You need to lock OpenGL states..  or multithreading will crash !!!!!!!!!!!!!!!!!!!!!!!!!!!
-	ren_chk->loaded = 0;
-	return ;
-
-	Render *render = self->GetRenderInstance();
-	render->glGenBuffersARB(1, &ren_chk->vbo);
-	render->glBindBufferARB(GL_ARRAY_BUFFER_ARB, ren_chk->vbo);
-
-	// now upload to graphics card
-	render->glBufferDataARB(GL_ARRAY_BUFFER_ARB, size*6*20*sizeof(GLfloat), vertices, GL_STATIC_DRAW_ARB);
-
-	delete[] vertices;
-	vertices = 0;
-
-	render->glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
-
-	ren_chk->loaded = 1;
-	
+	self->render->LoadChunk(ren_chk, map_chk, 1);
 }
 
 

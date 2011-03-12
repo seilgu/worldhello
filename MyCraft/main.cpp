@@ -48,10 +48,22 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	case WM_LBUTTONUP:
 		return 0;
 	case WM_KEYDOWN:
-		keys[wParam] = TRUE;
+		switch (wParam) {
+		case VK_ESCAPE: captureMouse = 1 - captureMouse;
+			if (captureMouse == 1) {
+				ShowCursor(false);
+			} else {
+				ShowCursor(true);
+			}
+			break;
+		default: keys[wParam] = TRUE;			break;
+		}
 		return 0;
 	case WM_KEYUP:
-		keys[wParam] = FALSE;
+		switch (wParam) {
+		case VK_ESCAPE: break;
+		default: keys[wParam] = FALSE; break;
+		}
 		return 0;
 	case WM_CLOSE:
 		PostQuitMessage(0);
@@ -63,7 +75,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 DWORD tick1, tick2;
 POINT cs;
-int captureMouse = 1;
 // FPS
 int framecount = 0;
 double fps = 0;
@@ -72,10 +83,6 @@ int DrawGLScene(GLvoid)
 	glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 	
 	// Ugly mouse handling
-	if (keys['R'] == TRUE) {
-		keys['R'] = FALSE;
-		captureMouse = 1 - captureMouse;
-	}
 	
 	if (captureMouse) {
 		GetCursorPos(&cs);
@@ -112,49 +119,46 @@ int DrawGLScene(GLvoid)
 	QueryPerformanceCounter(&lastTick);
 	s_Render->LoadNeededChunks(m_Player->eyepos, m_Player->dir, s_World);
 	s_Render->DiscardUnneededChunks(m_Player->eyepos, m_Player->dir, s_World);
-	s_Render->DrawScene2(m_Player->eyepos, m_Player->dir, 400);
+	s_Render->DrawScene(m_Player->eyepos, m_Player->dir, 400);
 	QueryPerformanceCounter(&currTick);
 	
 	
 
 	// Debugging purpose
 	glBindTexture(GL_TEXTURE_2D, 0);
-	
-	glPushMatrix();
-	glTranslatef(-50, 50, -200);
-	glScalef(10, 10, 1);
-	glColor3f(1, 1, 1);
 
 	float3 pos = m_Player->eyepos;
 	int3 id((int)floor(pos.x / (BLOCK_LEN*CHUNK_W)), 
 		(int)floor(pos.y / (BLOCK_LEN*CHUNK_L)), 
 		(int)floor(pos.z / (BLOCK_LEN*CHUNK_H)));
 	
-		fps = tickFreq/(currTick.LowPart - lastTick.LowPart);
-
-		glPushMatrix();
-		glPrint("FPS:%.3f %d,%d,%d", fps, id.x, id.y, id.z);
-		glPopMatrix();
+	fps = tickFreq/(currTick.LowPart - lastTick.LowPart);
 
 	char buffer[128];
-	
 	s_Render->PrintChunkStatistics(buffer);
 
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	glOrtho(0, _width, 0, _height, -1, 1);
+
+		glScalef(20, 20, 1);
+		
 		glPushMatrix();
-		glTranslatef(0, -1, 0);
+		glPrint("FPS:%4.0f %d,%d,%d", fps, id.x, id.y, id.z);
+		glPopMatrix();
+
+		glPushMatrix();
+		glTranslatef(0, 1, 0);
 		glPrint("%s", buffer);
 		glPopMatrix();
 
-	//s_World->world_map.PrintChunkStatistics(buffer);
+		//s_World->world_map.PrintChunkStatistics(buffer);
 	
-
-		glPushMatrix();
-		glTranslatef(0, -2, 0);
-			glPrint("COUNT:%d", s_World->world_map.counter);
-		glPopMatrix();
-
-	glPopMatrix();
-
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	gluPerspective(45.0f, (GLfloat)_width/(GLfloat)_height, 0.1f, 10000.0f);
+	//glMatrixMode(GL_MODELVIEW);
+	//glLoadIdentity();
 
 
 	return TRUE;
@@ -193,18 +197,22 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 	if (!CreateGLWindow())
 		return 0;
 
+	CheckVBOSupport();
+
+	/************* Game things ***************/
+	InitClasses();
+
 	ShowWindow(hWnd, SW_SHOW);
 
 	ReSizeGLScene(WIDTH, HEIGHT);
 
-	//************* GL things ***************/
+	/************* GL things ***************/
 
 	if (!InitGL()) {
 		MessageBox(0, "Fail to init GL", "ERROR", MB_OK);
 		return FALSE;
 	}
 
-	InitClasses();
 
 	LARGE_INTEGER _FREQ;
 	QueryPerformanceFrequency(&_FREQ);
@@ -222,8 +230,8 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 	m_Player->eyepos = float3(20, 20, 20);
 	m_Player->theta = PI/2;
 	m_Player->phi = PI/4;
-	//m_Player.dir = float3(0, 10, 0);
 
+	
 	//************* Event loop ***************/
 
 	ShowCursor(false);

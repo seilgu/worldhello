@@ -70,34 +70,39 @@ typedef std::map<int3, map_chunk *, id_compare> chunk_list;
 class Map {
 public :
 	Map() {
-		counter = 0;
-		m_Thread.Start();
+		m_Thread = new MapChunkThread(this);
+		m_Thread->Start();
 	}
 	~Map();
 
-	
-	int counter;
 	chunk_list m_chunks;
 
 	class MapChunkThread {
 	private:
 		bool active;
-		bool queue_lock;
 	public:
+		Map *map;
 		std::queue<map_chunk *> jobs;
 		HANDLE handle;
 
-		MapChunkThread() {
-			queue_lock = false;
+		MapChunkThread(Map *m) {
+			map = m;
 			active = false;
 		}
 
 		~MapChunkThread() {
+			End();
+		}
+
+		void End() {
+			if (handle == 0)
+				return;
 			// kill the thread
 			active = false;
 			// wait for thread to complete
 			WaitForSingleObject(handle, INFINITE);
 			CloseHandle(handle);
+			handle = 0;
 		}
 
 		void Start() {
@@ -114,13 +119,12 @@ public :
 
 		void threadLoadChunk(map_chunk *chk);
 		static void threadLoop(void *param);
-	}m_Thread;
+	};
+	MapChunkThread *m_Thread;
 
 	void DeleteChunk(map_chunk *chk);
 	int ChunkFileExists(int3 id);
 	void LoadChunk(int3 id, int urgent);
-	map_chunk *Map::CreateChunkFromFile(int3 id);
-	map_chunk *LoadChunk(int3 id);
 	void LoadNeededChunks(float3 pos, float3 dir);
 	void MarkUnneededChunks(float3 pos, float3 dir);
 	void DiscardUnneededChunks();

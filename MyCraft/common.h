@@ -6,7 +6,7 @@
 
 #define PI 3.1415926f
 
-#define BLOCK_LEN 4.0f
+#define BLOCK_LEN 1.0f
 
 struct int2 {
 	int x, y;
@@ -18,6 +18,8 @@ struct int3 {
 	int x, y, z;
 	int3() : x(0), y(0), z(0) {}
 	int3(int xx, int yy, int zz) : x(xx), y(yy), z(zz) {}
+	int3 operator-(int3 &i2);
+	int3 operator+(int3 &i2);
 	bool operator!=(int3 &i2);
 };
 
@@ -76,9 +78,19 @@ inline float dot_prod(float3 a, float3 b) {
 	return a.x*b.x + a.y*b.y + a.z*b.z;
 }
 
+inline int dot_prod(int3 a, int3 b) {
+	return a.x*b.x + a.y*b.y + a.z*b.z;
+}
+
+inline float dot_prod(int3 a, float3 b) {
+	return a.x*b.x + a.y*b.y + a.z*b.z;
+}
+
 inline float length(float3 &f) {
 	return sqrt(f.x*f.x + f.y*f.y + f.z*f.z);
 }
+
+
 
 
 

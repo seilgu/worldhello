@@ -1,7 +1,16 @@
 
 #include <math.h>
 
+#include "glext.h"
 
+PFNGLGENBUFFERSARBPROC glGenBuffersARB;                     // VBO Name Generation Procedure
+PFNGLBINDBUFFERARBPROC glBindBufferARB;                     // VBO Bind Procedure
+PFNGLBUFFERDATAARBPROC glBufferDataARB;                     // VBO Data Loading Procedure
+PFNGLBUFFERSUBDATAARBPROC glBufferSubDataARB;               // VBO Sub Data Loading Procedure
+PFNGLDELETEBUFFERSARBPROC glDeleteBuffersARB;               // VBO Deletion Procedure
+PFNGLGETBUFFERPARAMETERIVARBPROC glGetBufferParameterivARB; // return various parameters of VBO
+PFNGLMAPBUFFERARBPROC glMapBufferARB;                       // map VBO procedure
+PFNGLUNMAPBUFFERARBPROC glUnmapBufferARB;                   // unmap VBO procedure
 
 
 #define WIDTH	1200
@@ -14,7 +23,7 @@ int _height = HEIGHT;
 HDC			hDC = 0;
 HWND		hWnd = 0;
 HINSTANCE	hInst = 0;
-HGLRC		hRC = 0;
+HGLRC		hRC = 0, hRC2 = 0;
 HINSTANCE	hInstance = 0;
 BOOL		active = TRUE;
 
@@ -22,6 +31,7 @@ BOOL		keys[256];
 
 LARGE_INTEGER lastTick, currTick;
 double tickFreq;
+int captureMouse = 1;
 
 GLuint				box;
 GLuint				base;
@@ -115,7 +125,6 @@ GLvoid glPrint(const char *fmt, ...)					// Custom GL "Print" Routine
 	glPopAttrib();										// Pops The Display List Bits
 }
 
-
 GLvoid ReSizeGLScene(GLsizei width, GLsizei height)		// Resize And Initialize The GL Window
 {
 	if (height==0)										// Prevent A Divide By Zero By
@@ -133,6 +142,31 @@ GLvoid ReSizeGLScene(GLsizei width, GLsizei height)		// Resize And Initialize Th
 	glLoadIdentity();									// Reset The Modelview Matrix
 }
 
+void CheckVBOSupport() {
+	glGenBuffersARB = 0;                     // VBO Name Generation Procedure
+	glBindBufferARB = 0;                     // VBO Bind Procedure
+	glBufferDataARB = 0;                     // VBO Data Loading Procedure
+	glBufferSubDataARB = 0;               // VBO Sub Data Loading Procedure
+	glDeleteBuffersARB = 0;               // VBO Deletion Procedure
+	glGetBufferParameterivARB = 0; // return various parameters of VBO
+	glMapBufferARB = 0;                       // map VBO procedure
+	glUnmapBufferARB = 0;                   // unmap VBO procedure
+		
+	glGenBuffersARB = (PFNGLGENBUFFERSARBPROC)wglGetProcAddress("glGenBuffersARB");
+	glBindBufferARB = (PFNGLBINDBUFFERARBPROC)wglGetProcAddress("glBindBufferARB");
+	glBufferDataARB = (PFNGLBUFFERDATAARBPROC)wglGetProcAddress("glBufferDataARB");
+	glBufferSubDataARB = (PFNGLBUFFERSUBDATAARBPROC)wglGetProcAddress("glBufferSubDataARB");
+	glDeleteBuffersARB = (PFNGLDELETEBUFFERSARBPROC)wglGetProcAddress("glDeleteBuffersARB");
+	glGetBufferParameterivARB = (PFNGLGETBUFFERPARAMETERIVARBPROC)wglGetProcAddress("glGetBufferParameterivARB");
+	glMapBufferARB = (PFNGLMAPBUFFERARBPROC)wglGetProcAddress("glMapBufferARB");
+	glUnmapBufferARB = (PFNGLUNMAPBUFFERARBPROC)wglGetProcAddress("glUnmapBufferARB");
+	
+	if(glGenBuffersARB && glBindBufferARB && glBufferDataARB && glBufferSubDataARB &&
+           glMapBufferARB && glUnmapBufferARB && glDeleteBuffersARB && glGetBufferParameterivARB)
+	{} else {
+		MessageBox(0, "VBO not supported", "haha", 0);
+    }
+}
 
 BOOL InitGL()
 {
@@ -149,7 +183,7 @@ BOOL InitGL()
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_BACK);
-
+	
 	BuildFont();
 
 	setVSync(1);
@@ -246,6 +280,14 @@ BOOL CreateGLWindow()
 		MessageBox(0, "Fail to create context", "ERROR", MB_OK);
 		return FALSE;
 	}
+
+	if (!(hRC2 = wglCreateContext(hDC)))
+	{
+		MessageBox(0, "Fail to create context", "ERROR", MB_OK);
+		return FALSE;
+	}
+
+	wglShareLists(hRC, hRC2);
 
 	if (!wglMakeCurrent(hDC, hRC))
 	{

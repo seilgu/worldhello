@@ -30,3 +30,11 @@ bool int3::operator!=(int3 &i2) {
 		return true;
 	return false;
 }
+
+int3 int3::operator-(int3 &i2) {
+	return int3(x - i2.x, y - i2.y, z - i2.z);
+}
+
+int3 int3::operator+(int3 &i2) {
+	return int3(x + i2.x, y + i2.y, z + i2.z);
+}

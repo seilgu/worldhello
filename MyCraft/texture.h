@@ -20,8 +20,6 @@ public:
 
 	GLuint block_texture;
 
-	int LoadBitmap(LPTSTR szFileName, GLuint &texid);
-
 public :
 	TextureMgr();
 	~TextureMgr() {}

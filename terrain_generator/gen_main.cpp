@@ -78,22 +78,26 @@ struct chunk_header {
 
 // Offset is used to relate relative position in the world
 int generate_terrain(short int *terrain, int3 offset, int3 dim) {
+	int3 pos;
 	for (int i=0; i<dim.x; i++) {
 		for (int j=0; j<dim.y; j++) {
 			for (int k=0; k<dim.z; k++) {
+				pos.x = offset.x + i;
+				pos.y = offset.y + j;
+				pos.z = offset.z + k;
 				int test = MersenneIRandom(0, 10);
-
-				if (test < 1) {
+				
+				terrain[k*dim.x*dim.y + j*dim.x + i] = 0;
+				if (pos.z < 1) {
 					terrain[k*dim.x*dim.y + j*dim.x + i] = 3;
 				}
-				else if (test < 2) {
+				if (pos.z == 1) {
 					terrain[k*dim.x*dim.y + j*dim.x + i] = 2;
 				}
-				else if (test < 3) {
-					terrain[k*dim.x*dim.y + j*dim.x + i] = 1;
-				}
-				else {
-					terrain[k*dim.x*dim.y + j*dim.x + i] = 0;
+				if (pos.z == 2) {
+					if (test == 0) {
+						terrain[k*dim.x*dim.y + j*dim.x + i] = 1;
+					}
 				}
 			}
 		}
@@ -159,9 +163,9 @@ int main(int agrc, char *argv[]) {
 	int3 dim(16, 16, 128);
 	int world_id = 1;
 
-	for (int i=-5; i<5; i++) {
-		for (int j=-5; j<5; j++) {
-			for (int k=-5; k<5; k++) {
+	for (int i=-10; i<10; i++) {
+		for (int j=-10; j<10; j++) {
+			for (int k=-1; k<2; k++) {
 				chkid.x = i;
 				chkid.y = j;
 				chkid.z = k;

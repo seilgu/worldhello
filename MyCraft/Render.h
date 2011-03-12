@@ -10,12 +10,21 @@
 #include "Map.h"
 #include "texture.h"
 
+extern PFNGLGENBUFFERSARBPROC glGenBuffersARB;                     // VBO Name Generation Procedure
+extern PFNGLBINDBUFFERARBPROC glBindBufferARB;                     // VBO Bind Procedure
+extern PFNGLBUFFERDATAARBPROC glBufferDataARB;                     // VBO Data Loading Procedure
+extern PFNGLBUFFERSUBDATAARBPROC glBufferSubDataARB;               // VBO Sub Data Loading Procedure
+extern PFNGLDELETEBUFFERSARBPROC glDeleteBuffersARB;               // VBO Deletion Procedure
+extern PFNGLGETBUFFERPARAMETERIVARBPROC glGetBufferParameterivARB; // return various parameters of VBO
+extern PFNGLMAPBUFFERARBPROC glMapBufferARB;                       // map VBO procedure
+extern PFNGLUNMAPBUFFERARBPROC glUnmapBufferARB;                   // unmap VBO procedure
 
 class World;
 class TextureMgr;
 extern class World *s_World;
 extern class TextureMgr *s_Texture;
-
+extern HDC hDC;
+extern HGLRC hRC2;
 
 /*************************************************************************
 	A singleton class that handles graphics drawing, 
@@ -45,25 +54,25 @@ public :
 	render_list r_chunks;
 
 	Render() {
-		glGenBuffersARB = 0;                     // VBO Name Generation Procedure
-		glBindBufferARB = 0;                     // VBO Bind Procedure
-		glBufferDataARB = 0;                     // VBO Data Loading Procedure
-		glBufferSubDataARB = 0;               // VBO Sub Data Loading Procedure
-		glDeleteBuffersARB = 0;               // VBO Deletion Procedure
-		glGetBufferParameterivARB = 0; // return various parameters of VBO
-		glMapBufferARB = 0;                       // map VBO procedure
-		glUnmapBufferARB = 0;                   // unmap VBO procedure
-
-		CheckVBOSupport();
-
-		m_Thread.SetRenderInstance(this);
-
-		//m_Thread.Start();              // Doesn't WORK
-
+		BeginWorkThread();
 	}
 	~Render();
 
-	void CheckVBOSupport();
+	void BeginWorkThread() {
+		m_Thread = 0;
+		m_Thread = new RenderChunkThread(this);
+		m_Thread->Start();              // Doesn't WORK
+	}
+
+	void KillWorkThread() {
+		if (m_Thread == 0)
+			return;
+
+		m_Thread->End();
+		delete m_Thread;
+		m_Thread = 0;
+	}
+
 	void DeleteChunk(render_chunk *chk);
 	void LoadChunk(render_chunk *ren_chk, map_chunk *map_chk, int urgent);
 
@@ -72,11 +81,12 @@ public :
 	void DiscardUnneededChunks(float3 pos, float3 dir, World *world);
 	// Draw to screen
 	void DrawScene(float3 pos, float3 dir, float dist);
-	void DrawScene2(float3 pos, float3 dir, float dist);
-	void RenderChunk(map_chunk *chk, float3 pos, float3 dir);
-	void RenderChunk2(render_chunk *tmp, float3 pos, float3 dir);
+	void DrawScene0(float3 pos, float3 dir, float dist);
+	void RenderChunk(render_chunk *tmp, float3 pos, float3 dir);
+	void RenderChunk0(map_chunk *chk, float3 pos, float3 dir);
 	void DrawFaceSimple(int i, int j, int k, int type, int dir);
 	void PrintChunkStatistics(char *buffer);
+	void GetTextureCoordinates(short int type, int dir, float2 &dst);
 
 	typedef std::pair<render_chunk *, map_chunk *> render_pair;
 	class RenderChunkThread {
@@ -92,16 +102,17 @@ public :
 			return render;
 		}
 
-		void SetRenderInstance(Render *inst) {
+		RenderChunkThread(Render *inst) {
 			if (inst != 0)
 				render = inst;
-		}
-
-		RenderChunkThread() {
 			active = false;
 		}
 
 		~RenderChunkThread() {
+			End();
+		}
+
+		void End() {
 			// kill the thread
 			active = false;
 			// wait for thread to complete
@@ -124,17 +135,8 @@ public :
 
 		void threadLoadChunk(render_pair pair, RenderChunkThread *self);
 		static void threadLoop(void *param);
-	}m_Thread;
-
-public:
-	PFNGLGENBUFFERSARBPROC glGenBuffersARB;                     // VBO Name Generation Procedure
-	PFNGLBINDBUFFERARBPROC glBindBufferARB;                     // VBO Bind Procedure
-	PFNGLBUFFERDATAARBPROC glBufferDataARB;                     // VBO Data Loading Procedure
-	PFNGLBUFFERSUBDATAARBPROC glBufferSubDataARB;               // VBO Sub Data Loading Procedure
-	PFNGLDELETEBUFFERSARBPROC glDeleteBuffersARB;               // VBO Deletion Procedure
-	PFNGLGETBUFFERPARAMETERIVARBPROC glGetBufferParameterivARB; // return various parameters of VBO
-	PFNGLMAPBUFFERARBPROC glMapBufferARB;                       // map VBO procedure
-	PFNGLUNMAPBUFFERARBPROC glUnmapBufferARB;                   // unmap VBO procedure
+	};
+	RenderChunkThread *m_Thread;
 };
 
 
