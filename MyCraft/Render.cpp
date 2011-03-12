@@ -1,5 +1,4 @@
 #include "Render.h"
-
 #include "World.h"
 
 inline float2 get_texture_coord(int tx) {
@@ -22,7 +21,7 @@ void Render::DrawFaceSimple(int i, int j, int k, int type, int dir) {
 	case Block::CRATE: // Draw a crate
 		side_texture = TextureMgr::CRATE;
 		break;
-	case Block::GRASS: // Draw a crate
+	case Block::GRASS: // Draw a grass
 		switch (dir) {
 		case PZ: side_texture = TextureMgr::GRASS_TOP; break;
 		case NZ: side_texture = TextureMgr::GRASS_BUTTOM; break;
@@ -84,8 +83,6 @@ void Render::DrawFaceSimple(int i, int j, int k, int type, int dir) {
 }
 
 extern DWORD tick1, tick2;
-
-
 
 Render::~Render() {
 	KillWorkThread();
@@ -469,11 +466,13 @@ void Render::DiscardUnneededChunks(float3 pos, float3 dir, World *world) {
 
 		if (chunks->find(id) == chunks->end()) { // in render but no in map -> unneeded
 			DeleteChunk(renderchk);
-			render_it = r_chunks.erase(render_it);
+			//render_it = r_chunks.erase(render_it);
+			r_chunks.erase(render_it++);
 		}
 		else if (renderchk->failed == 1 || renderchk->unneeded == 1) { // check flags
 			DeleteChunk(renderchk);
-			render_it = r_chunks.erase(render_it);
+			//render_it = r_chunks.erase(render_it);
+			r_chunks.erase(render_it++);
 		}
 		else {
 			++render_it;
@@ -489,7 +488,7 @@ void Render::PrintChunkStatistics(char *buffer) {
 		total++;
 	}
 
-	sprintf_s(buffer, 16, "r_total:%d", total); // overkill
+	snprintf(buffer, 16, "r_total:%d", total); // overkill
 }
 
 void Render::LoadNeededChunks(float3 pos, float3 dir, World *world) {
@@ -550,13 +549,15 @@ void Render::RenderChunk0(map_chunk *chk, float3 pos, float3 dir) {
 	float3 unit_z(0, 0, 1);
 	
 	int type;
-	for (int i=0; i<CHUNK_W; i++) {
-		for (int j=0; j<CHUNK_L; j++) {
-			for (int k=0; k<CHUNK_H; k++) {
+	//for (int i=0; i<CHUNK_W; i++) {
+	for (int i=CHUNK_W-1; i>=0; i--) {
+		//for (int j=0; j<CHUNK_L; j++) {
+		for (int j=CHUNK_L-1; j>=0; j--) {
+			//for (int k=0; k<CHUNK_H; k++) {
+			for (int k=CHUNK_H-1; k>=0; k--) {
 				type = (chk->blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i]).type;
 				if (type == Block::NUL) continue;
-				if (chk->blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden == 1)
-					continue;
+				if (type == Block::SOIL) continue;
 
 				rel.x = (chk->id.x*CHUNK_W + i)*BLOCK_LEN - pos.x;
 				rel.y = (chk->id.y*CHUNK_L + j)*BLOCK_LEN - pos.y;
@@ -666,7 +667,7 @@ void Render::DrawScene0(float3 pos, float3 dir, float dist) {
 
 void Render::RenderChunkThread::threadLoop(void *param) {
 	// should get here very early
-	wglMakeCurrent(hDC, hRC2);
+	//wglMakeCurrent(hDC, hRC2);
 	
 	Render::RenderChunkThread *self = (Render::RenderChunkThread *)param;
 	while (self->active) {
@@ -698,6 +699,8 @@ void Render::RenderChunkThread::threadLoadChunk(render_pair pair, Render::Render
 #define HLSMAX		360
 #define RGBMAX		255
 #define UNDEFINED	(HLSMAX*2/3)
+
+#ifndef APPLE
 WORD HueToRGB(WORD n1, WORD n2, WORD hue)
 {
 	/* range check: note values passed add/subtract thirds of range */ 
@@ -747,3 +750,4 @@ DWORD HLStoRGB(WORD hue, WORD lum, WORD sat)
 	}
 	return(RGB(R,G,B));
 }
+#endif

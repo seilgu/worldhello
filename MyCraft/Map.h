@@ -2,10 +2,16 @@
 #ifndef _MAP_H_
 #define _MAP_H_
 
-#include "common.h"
+#ifndef APPLE
 
 #include <Windows.h>
 #include <process.h>
+
+#else
+
+#endif
+
+#include "common.h"
 #include "Block.h"
 #include <cstdlib>
 #include <map>
@@ -83,7 +89,10 @@ public :
 	public:
 		Map *map;
 		std::queue<map_chunk *> jobs;
+
+#ifndef APPLE
 		HANDLE handle;
+#endif
 
 		MapChunkThread(Map *m) {
 			map = m;
@@ -95,6 +104,7 @@ public :
 		}
 
 		void End() {
+#ifndef APPLE
 			if (handle == 0)
 				return;
 			// kill the thread
@@ -103,14 +113,17 @@ public :
 			WaitForSingleObject(handle, INFINITE);
 			CloseHandle(handle);
 			handle = 0;
+#endif
 		}
 
 		void Start() {
+#ifndef APPLE
 			if (active == true)
 				return;
 			active = true;
 			// create thread and run it
 			handle = (HANDLE)_beginthread(MapChunkThread::threadLoop, 0, this);
+#endif
 		}
 
 		void PushJobs(map_chunk *chk) {

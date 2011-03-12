@@ -3,10 +3,24 @@
 #define _COMMON_H_
 
 #include <math.h>
+#include <stdio.h>
 
 #define PI 3.1415926f
 
 #define BLOCK_LEN 1.0f
+
+
+#ifdef APPLE
+//////////////////////////////////  trash area
+#include <unistd.h>
+#include <OpenGL/glu.h>
+typedef GLushort	WORD;
+typedef GLuint		DWORD;
+typedef GLint		LONG;
+
+void MessageBox(int handler, const char *message, const char *title, int button);
+void Sleep(int millisec);
+#endif
 
 struct int2 {
 	int x, y;

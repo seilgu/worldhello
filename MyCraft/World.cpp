@@ -1,6 +1,9 @@
+#ifndef APPLE
+#include <Windows.h>
+#endif
+
 #include "World.h"
 #include "asmlibran.h"
-#include <Windows.h>
 
 #include "Debug.h"
 

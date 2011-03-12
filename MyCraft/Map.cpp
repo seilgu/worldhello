@@ -53,7 +53,7 @@ Map::~Map() {
 
 	for (it = m_chunks.begin(); it != m_chunks.end(); ) {
 		DeleteChunk((*it).second);
-		it = m_chunks.erase(it);
+		m_chunks.erase(it++);
 	}
 }
 
@@ -85,7 +85,7 @@ void Map::MarkUnneededChunks(float3 pos, float3 dir) {
 	for (it = m_chunks.begin(); it != m_chunks.end(); ++it) {
 		int3 idchk = (*it).first;
 		map_chunk *tmp = (*it).second;
-		if (abs(idchk.x - id.x) > 10 || abs(idchk.y - id.y) > 10 || abs(idchk.z - id.z) > 1) {
+		if (abs(idchk.x - id.x) > 3 || abs(idchk.y - id.y) > 3 || abs(idchk.z - id.z) > 1) {
 			if (tmp->loaded == 1 || tmp->failed == 1)
 				tmp->unneeded = 1;
 		}
@@ -104,14 +104,14 @@ void Map::DiscardUnneededChunks() { //  ALSO deletes FAILED!!
 
 		if (tmp->failed == 1) {
 			DeleteChunk(tmp);
-			it = m_chunks.erase(it);
+			m_chunks.erase(it++);
 		}
 		else if (tmp->loaded == 0) { // loading
 			++it;
 		}
 		else if (tmp->unneeded == 1) {
 			DeleteChunk(tmp);
-			it = m_chunks.erase(it);
+			m_chunks.erase(it++);
 		}
 		else {
 			++it;
@@ -127,8 +127,8 @@ void Map::LoadNeededChunks(float3 pos, float3 dir) {
 	int3 tmp;
 	
 	// these are the needed 5x5 chunks around the player
-	for (int i=-10; i<=10; i++) {
-		for (int j=-10; j<=10; j++) {
+	for (int i=-3; i<=3; i++) {
+		for (int j=-3; j<=3; j++) {
 			for (int k=-1; k<=1; k++) {
 				// setup chunk ids
 				tmp.x = id.x + i;
@@ -136,7 +136,7 @@ void Map::LoadNeededChunks(float3 pos, float3 dir) {
 				tmp.z = id.z + k;
 
 				if (m_chunks.find(tmp) == m_chunks.end()) { // not loaded
-					LoadChunk(tmp, 0);
+					LoadChunk(tmp, 1);
 				}
 			}
 		}
@@ -151,11 +151,19 @@ int Map::ChunkFileExists(int3 id) {
 	tobase36(id.y, by);
 	tobase36(id.z, bz);
 
-	sprintf_s(filename, ".\\map\\%s%s%s.chk", bx, by, bz);
+#ifndef APPLE
+	snprintf(filename, 32, ".\\map\\%s%s%s.chk", bx, by, bz);
+#else
+	snprintf(filename, 32, "./map/%s%s%s.chk", bx, by, bz);
+#endif
 
 	FILE *fp = 0;
+#ifndef APPLE
 	fopen_s(&fp, filename, "r");
-	
+#else
+	fp = fopen(filename, "r");
+#endif
+
 	if (fp != 0) {
 		fclose(fp);
 		return 1;
@@ -246,10 +254,18 @@ void Map::MapChunkThread::threadLoadChunk(map_chunk *chk) {
 	tobase36(chk->id.y, by);
 	tobase36(chk->id.z, bz);
 
-	sprintf_s(filename, ".\\map\\%s%s%s.chk", bx, by, bz);
-
 	FILE *fp = 0;
+#ifndef APPLE
+	snprintf(filename, 32, ".\\map\\%s%s%s.chk", bx, by, bz);
+#else
+	snprintf(filename, 32, "./map/%s%s%s.chk", bx, by, bz);
+#endif
+
+#ifndef APPLE
 	fopen_s(&fp, filename, "r");
+#else
+	fp = fopen(filename, "r");
+#endif
 	
 	if (fp == 0) {
 		chk->failed = 1;

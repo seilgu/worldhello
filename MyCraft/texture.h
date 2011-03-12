@@ -2,9 +2,19 @@
 #ifndef _TEXTURE_H_
 #define _TEXTURE_H_
 
+#ifndef APPLE
+
 #include <Windows.h>
 #include <GL\GL.h>
 #include <GL\GLU.h>
+
+#else
+
+#include <OpenGL/gl.h>
+#include <OpenGL/glu.h>
+
+#endif
+
 
 #define TX_ROW	16	// 16*16 = 256 textures in one file
 

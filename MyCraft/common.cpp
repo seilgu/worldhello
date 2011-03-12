@@ -1,5 +1,16 @@
 #include "common.h"
 
+#ifdef APPLE
+void MessageBox(int handler, const char *message, const char *title, int button)
+{
+	fprintf(stderr, "Title %s:\n\t%s\n", title, message);
+}
+void Sleep(int millisec)
+{
+	sleep(millisec);
+}
+#endif
+
 float3 float3::operator+(float3 &f2) {
 	return float3(x+f2.x, y+f2.y, z+f2.z);
 }

@@ -2,14 +2,26 @@
 #ifndef _RENDER_H_
 #define _RENDER_H_
 
-#include "common.h"
+#ifndef APPLE
+
 #include <Windows.h>
 #include <gl\gl.h>
 #include <gl\glu.h>
 #include "glext.h"
+
+#else
+
+#include <OpenGL/gl.h>
+#include <OpenGL/glu.h>
+#include <OpenGL/glext.h>
+
+#endif
+
+#include "common.h"
 #include "Map.h"
 #include "texture.h"
 
+#ifndef APPLE
 extern PFNGLGENBUFFERSARBPROC glGenBuffersARB;                     // VBO Name Generation Procedure
 extern PFNGLBINDBUFFERARBPROC glBindBufferARB;                     // VBO Bind Procedure
 extern PFNGLBUFFERDATAARBPROC glBufferDataARB;                     // VBO Data Loading Procedure
@@ -19,12 +31,16 @@ extern PFNGLGETBUFFERPARAMETERIVARBPROC glGetBufferParameterivARB; // return var
 extern PFNGLMAPBUFFERARBPROC glMapBufferARB;                       // map VBO procedure
 extern PFNGLUNMAPBUFFERARBPROC glUnmapBufferARB;                   // unmap VBO procedure
 
+extern HDC hDC;
+extern HGLRC hRC2;
+
+#endif
+
 class World;
 class TextureMgr;
 extern class World *s_World;
 extern class TextureMgr *s_Texture;
-extern HDC hDC;
-extern HGLRC hRC2;
+
 
 /*************************************************************************
 	A singleton class that handles graphics drawing, 
@@ -96,7 +112,9 @@ public :
 	public:
 		std::queue<render_pair> jobs;
 		//std::queue<render_chunk *> jobs;
+#ifndef APPLE
 		HANDLE handle;
+#endif
 
 		Render *GetRenderInstance() {
 			return render;
@@ -113,11 +131,13 @@ public :
 		}
 
 		void End() {
+#ifndef APPLE
 			// kill the thread
 			active = false;
 			// wait for thread to complete
 			WaitForSingleObject(handle, INFINITE);
 			CloseHandle(handle);
+#endif
 		}
 
 		void Start() {
@@ -125,8 +145,10 @@ public :
 				return;
 
 			active = true;
+#ifndef APPLE
 			// create thread and run it
 			handle = (HANDLE)_beginthread(RenderChunkThread::threadLoop, 0, this);
+#endif
 		}
 
 		void PushJobs(render_pair pair) {
