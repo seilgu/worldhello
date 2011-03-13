@@ -9,6 +9,15 @@
 
 #define BLOCK_LEN 1.0f
 
+#define HLSMAX		360
+#define RGBMAX		255
+#define UNDEFINED	(HLSMAX*2/3)
+
+#ifndef APPLE
+#include <Windows.h>
+WORD HueToRGB(WORD n1, WORD n2, WORD hue);
+DWORD HLStoRGB(WORD hue, WORD lum, WORD sat);
+#endif
 
 #ifdef APPLE
 //////////////////////////////////  trash area
@@ -21,6 +30,16 @@ typedef GLint		LONG;
 void MessageBox(int handler, const char *message, const char *title, int button);
 void Sleep(int millisec);
 #endif
+
+#ifdef _MSC_VER
+#define snprintf sprintf_s
+#endif
+
+struct int3;
+
+void tobase36(int from, char to[]);
+void print_chunk_filename(int3 id, char *dst);
+FILE *OpenFile(char *filename);
 
 struct int2 {
 	int x, y;
@@ -104,6 +123,17 @@ inline float length(float3 &f) {
 	return sqrt(f.x*f.x + f.y*f.y + f.z*f.z);
 }
 
+struct id_compare
+{
+	bool operator()(int3 a, int3 b) const { // is a < b ?
+		if (a.x != b.x)
+			return (a.x - b.x < 0);
+		else if (a.y != b.y)
+			return (a.y - b.y < 0);
+		else
+			return (a.z - b.z < 0);
+	}
+};
 
 
 
