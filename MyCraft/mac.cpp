@@ -192,12 +192,12 @@ int main(int argc, char** argv)
 
 	glutInit(&argc, argv);
 
-	type = GLUT_RGB | GLUT_DOUBLE;
+	type = GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH;
 //	type = GLUT_RGB; 
 //	type |= (doubleBuffer) ? GLUT_DOUBLE : GLUT_SINGLE; 
 	glutInitDisplayMode(type); 
 
-	glutInitWindowSize(600 ,400);
+	glutInitWindowSize(800 ,600);
 	glutCreateWindow("ABGR extension");
 	//	if (!glutExtensionSupported("GL_EXT_abgr")) {
 	//		printf("Couldn't find abgr extension.\n");
