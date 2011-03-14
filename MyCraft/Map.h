@@ -45,16 +45,11 @@ struct chunk_header {
 
 struct map_chunk {
 	int3 id;
+	unsigned short modified:1;
 	unsigned short loaded:1;
 	unsigned short failed:1;
 	unsigned short unneeded:1;
 	Block *blocks;
-};
-
-
-template <class T>
-class ThreadSafeQueue : public std::queue<T> {
-
 };
 
 typedef std::map<int3, map_chunk *, id_compare> chunk_list;

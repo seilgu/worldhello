@@ -20,6 +20,7 @@
 #include "common.h"
 #include "Map.h"
 #include "texture.h"
+#include <map>
 
 #ifndef APPLE
 extern PFNGLGENBUFFERSARBPROC glGenBuffersARB;                     // VBO Name Generation Procedure
@@ -51,10 +52,12 @@ extern class TextureMgr *s_Texture;
 	now that you use std::vector to store T2F_V3F
 
 ************************************************************/
+typedef std::map<int3, Block *, id_compare> block_list;
 struct render_chunk {
 	int3 id;
 	int num_faces;
 	GLuint vbo;
+	block_list blockList;
 	unsigned short loaded:1;
 	unsigned short failed:1;
 	unsigned short unneeded:1;
@@ -165,6 +168,7 @@ public :
 		}
 
 		void threadLoadChunk(render_pair pair, RenderChunkThread *self);
+		void threadLoadChunk2(render_pair pair, RenderChunkThread *self);
 		static void threadLoop(void *param);
 	};
 	RenderChunkThread *m_Thread;

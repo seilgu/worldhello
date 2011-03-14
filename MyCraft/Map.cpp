@@ -63,7 +63,7 @@ void Map::MarkUnneededChunks(float3 pos, float3 dir) {
 	for (it = m_chunks.begin(); it != m_chunks.end(); ++it) {
 		int3 idchk = (*it).first;
 		map_chunk *tmp = (*it).second;
-		if (abs(idchk.x - id.x) > 3 || abs(idchk.y - id.y) > 3 || abs(idchk.z - id.z) > 1) {
+		if (abs(idchk.x - id.x) > 7 || abs(idchk.y - id.y) > 7 || abs(idchk.z - id.z) > 1) {
 			if (tmp->loaded == 1 || tmp->failed == 1)
 				tmp->unneeded = 1;
 		}
@@ -105,8 +105,8 @@ void Map::LoadNeededChunks(float3 pos, float3 dir) {
 	int3 tmp;
 	
 	// these are the needed 5x5 chunks around the player
-	for (int i=-3; i<=3; i++) {
-		for (int j=-3; j<=3; j++) {
+	for (int i=-7; i<=7; i++) {
+		for (int j=-7; j<=7; j++) {
 			for (int k=-1; k<=1; k++) {
 				// setup chunk ids
 				tmp.x = id.x + i;
@@ -206,6 +206,8 @@ void Map::MapChunkThread::threadLoadChunk(map_chunk *chk) {
 		return;
 	}
 
+	Block *blocks = chk->blocks;
+
 	char filename[32];
 	print_chunk_filename(chk->id, filename);
 	
@@ -230,8 +232,8 @@ void Map::MapChunkThread::threadLoadChunk(map_chunk *chk) {
 		for (int j=0; j<CHUNK_L; j++) {
 			for (int k=0; k<CHUNK_H; k++) {
 				unsigned short int t = type[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i];
-				(chk->blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i]).type = t;
-				chk->blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque = (t == Block::NUL ? 0 : 1);
+				blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].type = t;
+				blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque = (t == Block::NUL ? 0 : 1);
 			}
 		}
 	}

@@ -12,6 +12,47 @@ inline float2 get_texture_coord(int tx) {
 	return coord;
 }
 
+void UpdateVBO(render_chunk *renchk, map_chunk *mapchk) {
+	if (renchk == 0 || mapchk == 0)
+		return;
+	if (renchk->id != mapchk->id)
+		return;
+
+	Block *blocks = mapchk->blocks;
+
+	// check if map modified, if so, update visible blocks
+	for (int i=0; i<CHUNK_W; i++) {
+		for (int j=0; j<CHUNK_L; j++) {
+			for (int k=0; k<CHUNK_H; k++) {
+				if (blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].modified == 0)
+					continue;
+
+				// it's modified, update it & each side's block's visibility
+				if (blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque == 1) {
+					blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + CLAMPW(i+1)].opaque &= 1;
+					blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + CLAMPW(i-1)].hidden &= 1;
+					blocks[k*(CHUNK_W*CHUNK_L) + CLAMPL(j+1)*(CHUNK_W) + i].hidden &= 1;
+					blocks[k*(CHUNK_W*CHUNK_L) + CLAMPL(j-1)*(CHUNK_W) + i].hidden &= 1;
+					blocks[CLAMPH(k+1)*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden &= 1;
+					blocks[CLAMPH(k-1)*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden &= 1;
+				}
+				else { // transparent
+					blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + CLAMPW(i+1)].hidden = 0;
+					blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + CLAMPW(i-1)].hidden = 0;
+					blocks[k*(CHUNK_W*CHUNK_L) + CLAMPL(j+1)*(CHUNK_W) + i].hidden = 0;
+					blocks[k*(CHUNK_W*CHUNK_L) + CLAMPL(j-1)*(CHUNK_W) + i].hidden = 0;
+					blocks[CLAMPH(k+1)*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden = 0;
+					blocks[CLAMPH(k-1)*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden = 0;
+				}
+			}
+		}
+	}
+
+	//mapchk->blocks[
+	block_list::iterator it;
+
+}
+
 void Render::DrawFaceSimple(int i, int j, int k, int type, int dir) {
 	if (type == 0) return;
 
@@ -127,16 +168,65 @@ void Render::CalculateVisible2(int3 id) {
 		blocks[i].hidden = blocks[i].opaque;
 	}
 
-	for (int i=0; i<CHUNK_W; i++) {
+	/*for (int i=0; i<CHUNK_W; i++) {
 		for (int j=0; j<CHUNK_L; j++) {
 			for (int k=0; k<CHUNK_H; k++) {
+				// this is when NUL is dominant
 				if (blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].type == Block::NUL) continue;
+
 				blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden &= blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + CLAMPW(i+1)].opaque;
 				blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden &= blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + CLAMPW(i-1)].opaque;
 				blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden &= blocks[k*(CHUNK_W*CHUNK_L) + CLAMPL(j+1)*(CHUNK_W) + i].opaque;
 				blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden &= blocks[k*(CHUNK_W*CHUNK_L) + CLAMPL(j-1)*(CHUNK_W) + i].opaque;
 				blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden &= blocks[CLAMPH(k+1)*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque;
 				blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden &= blocks[CLAMPH(k-1)*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque;
+			}
+		}
+	}*/
+	
+	// scan in 3 directions, toggle inside/outside
+	for (int i=0; i<CHUNK_W; i++) {
+		for (int j=0; j<CHUNK_L; j++) {
+			int inside = blocks[0*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque;
+			for (int k=1; k<CHUNK_H; k++) {
+				if (inside == 0 && blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque == 1) {
+					inside = 1;
+					blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden = 0;
+				}
+				else if (inside == 1 && blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque == 0) {
+					blocks[(k-1)*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden = 0;
+					inside = 0;
+				}
+			}
+		}
+	}
+	for (int i=0; i<CHUNK_W; i++) {
+		for (int k=0; k<CHUNK_H; k++) {
+			int inside = blocks[k*(CHUNK_W*CHUNK_L) + 0*(CHUNK_W) + i].opaque;
+			for (int j=1; j<CHUNK_L; j++) {
+				if (inside == 0 && blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque == 1) {
+					inside = 1;
+					blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden = 0;
+				}
+				else if (inside == 1 && blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque == 0) {
+					blocks[k*(CHUNK_W*CHUNK_L) + (j-1)*(CHUNK_W) + i].hidden = 0;
+					inside = 0;
+				}
+			}
+		}
+	}
+	for (int k=0; k<CHUNK_H; k++) {
+		for (int j=0; j<CHUNK_L; j++) {
+			int inside = blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + 0].opaque;
+			for (int i=1; i<CHUNK_W; i++) {
+				if (inside == 0 && blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque == 1) {
+					inside = 1;
+					blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden = 0;
+				}
+				else if (inside == 1 && blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque == 0) {
+					blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i-1].hidden = 0;
+					inside = 0;
+				}
 			}
 		}
 	}
@@ -171,50 +261,6 @@ void Render::CheckChunkSide(int3 id, int dir) {
 
 	if (map_side == 0 || map_side->loaded == 0 || map_side->failed == 1 || map_side->unneeded == 1) {
 		// edge of map
-		switch (dir) {
-		case PX : 
-			for (int j=0; j<CHUNK_L; j++) {
-				for (int k=0; k<CHUNK_H; k++) {
-					blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + (CHUNK_W-1)].hidden &= 1;
-				}
-			}
-			break;
-		case NX : 
-			for (int j=0; j<CHUNK_L; j++) {
-				for (int k=0; k<CHUNK_H; k++) {
-					blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + 0].hidden &= 1;
-				}
-			}
-			break;
-		case PY : 
-			for (int i=0; i<CHUNK_W; i++) {
-				for (int k=0; k<CHUNK_H; k++) {
-					blocks[k*(CHUNK_W*CHUNK_L) + (CHUNK_L-1)*(CHUNK_W) + i].hidden &= 1;
-				}
-			}
-			break;
-		case NY : 
-			for (int i=0; i<CHUNK_W; i++) {
-				for (int k=0; k<CHUNK_H; k++) {
-					blocks[k*(CHUNK_W*CHUNK_L) + 0*(CHUNK_W) + i].hidden &= 1;
-				}
-			}
-			break;
-		case PZ : 
-			for (int i=0; i<CHUNK_W; i++) {
-				for (int j=0; j<CHUNK_L; j++) {
-					blocks[(CHUNK_H-1)*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden &= 1;
-				}
-			}
-			break;
-		case NZ : 
-			for (int i=0; i<CHUNK_W; i++) {
-				for (int j=0; j<CHUNK_L; j++) {
-					blocks[0*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden &= 1;
-				}
-			}
-			break;
-		}
 		return;
 	}
 
@@ -411,7 +457,7 @@ void Render::RenderChunk(render_chunk *tmp, float3 pos, float3 dir) {
 
 	float3 normal;
 	for (int w=0; w<4; w++) {
-		float3 p(id.x, id.y, id.z), n(id.x+1, id.y+1, id.z+1);
+		float3 n(id.x+1.0f, id.y+1.0f, id.z+1.0f);
 		switch (w) {
 		case 0:
 			normal = cross_prod(zNear*dir + rhs*zNear, upside);
@@ -426,13 +472,12 @@ void Render::RenderChunk(render_chunk *tmp, float3 pos, float3 dir) {
 			normal = cross_prod(zNear*dir - upside*zNear, rhs);
 			break;
 		}
-		if (normal.x > 0) { p.x++; n.x--; }
-		if (normal.y > 0) { p.y++; n.y--; }
-		if (normal.z > 0) { p.z++; n.z--; }
+		if (normal.x > 0) { n.x--; }
+		if (normal.y > 0) { n.y--; }
+		if (normal.z > 0) { n.z--; }
 
-		p.x *= CHUNK_W; p.y *= CHUNK_L; p.z *= CHUNK_H;
 		n.x *= CHUNK_W; n.y *= CHUNK_L; n.z *= CHUNK_H;
-		p = BLOCK_LEN*p - pos; n = BLOCK_LEN*n - pos;
+		n = BLOCK_LEN*n - pos;
 
 		if (dot_prod(normal, n) > 0)
 			return;
@@ -462,6 +507,54 @@ extern float fovY;
 void Render::RenderChunk0(map_chunk *chk, float3 pos, float3 dir) {
 	float3 rel;
 	
+	// do whole chunk's culling first
+	int all_inside = 0;
+	// frustum culling
+	int3 cid = chk->id;
+
+	// right plane normal
+	normalize(dir);
+	float3 rhs = float3(dir.y, -dir.x, 0);
+	normalize(rhs);
+	float r = sqrt(dir.x*dir.x + dir.y*dir.y);
+	float3 upside = float3(-dir.z*dir.x/r, -dir.z*dir.y/r, r);
+
+	float3 normal;
+
+	for (int w=0; w<4; w++) {
+		float3 n(cid.x+1.0f, cid.y+1.0f, cid.z+1.0f);
+		float3 p(cid.x, cid.y, cid.z);
+		switch (w) {
+		case 0:
+			normal = cross_prod(zNear*dir + rhs*zNear, upside);
+			break;
+		case 1:
+			normal = cross_prod(upside, zNear*dir - rhs*zNear);
+			break;
+		case 2:
+			normal = cross_prod(rhs, zNear*dir + upside*zNear);
+			break;
+		case 3:
+			normal = cross_prod(zNear*dir - upside*zNear, rhs);
+			break;
+		}
+		if (normal.x > 0) { n.x--; p.x++; }
+		if (normal.y > 0) { n.y--; p.x++; }
+		if (normal.z > 0) { n.z--; p.x++; }
+
+		p.x *= CHUNK_W; p.y *= CHUNK_L; p.z *= CHUNK_H;
+		n.x *= CHUNK_W; n.y *= CHUNK_L; n.z *= CHUNK_H;
+
+		n = BLOCK_LEN*n - pos;
+		p = BLOCK_LEN*p - pos;
+
+		if (dot_prod(normal, n) > 0) // all outside
+			return;
+
+		if (dot_prod(normal, p) < 0) // all inside
+			all_inside = 1;
+	}
+
 	int type;
 	for (int i=0; i<CHUNK_W; i++) {
 		for (int j=0; j<CHUNK_L; j++) {
@@ -472,44 +565,37 @@ void Render::RenderChunk0(map_chunk *chk, float3 pos, float3 dir) {
 				if (chk->blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden == 1)
 					continue;
 
-				// frustum culling
+				if (all_inside == 0) { // decide whether to skip
+					// frustum culling
+					int3 id = int3(i, j, k);
 
-				int3 id = int3(i, j, k);
+					for (int w=0; w<4; w++) {
+						float3 n(id.x+1.0f, id.y+1.0f, id.z+1.0f);
+						switch (w) {
+						case 0:
+							normal = cross_prod(zNear*dir + rhs*zNear, upside);
+							break;
+						case 1:
+							normal = cross_prod(upside, zNear*dir - rhs*zNear);
+							break;
+						case 2:
+							normal = cross_prod(rhs, zNear*dir + upside*zNear);
+							break;
+						case 3:
+							normal = cross_prod(zNear*dir - upside*zNear, rhs);
+							break;
+						}
+						if (normal.x > 0) { n.x--; }
+						if (normal.y > 0) { n.y--; }
+						if (normal.z > 0) { n.z--; }
 
-				// right plane normal
-				normalize(dir);
-				float3 rhs = float3(dir.y, -dir.x, 0);
-				normalize(rhs);
-				float r = sqrt(dir.x*dir.x + dir.y*dir.y);
-				float3 upside = float3(-dir.z*dir.x/r, -dir.z*dir.y/r, r);
+						n = n + float3((float)CHUNK_W*chk->id.x, (float)CHUNK_L*chk->id.y, (float)CHUNK_H*chk->id.z);
 
-				float3 normal;
-				for (int w=0; w<4; w++) {
-					float3 n(id.x+1, id.y+1, id.z+1);
-					switch (w) {
-					case 0:
-						normal = cross_prod(zNear*dir + rhs*zNear, upside);
-						break;
-					case 1:
-						normal = cross_prod(upside, zNear*dir - rhs*zNear);
-						break;
-					case 2:
-						normal = cross_prod(rhs, zNear*dir + upside*zNear);
-						break;
-					case 3:
-						normal = cross_prod(zNear*dir - upside*zNear, rhs);
-						break;
+						n = BLOCK_LEN*n - pos;
+
+						if (dot_prod(normal, n) > 0)
+							continue;
 					}
-					if (normal.x > 0) { n.x--; }
-					if (normal.y > 0) { n.y--; }
-					if (normal.z > 0) { n.z--; }
-
-					n = n + float3(CHUNK_W*chk->id.x, CHUNK_L*chk->id.y, CHUNK_H*chk->id.z);
-					
-					n = BLOCK_LEN*n - pos;
-
-					if (dot_prod(normal, n) > 0)
-						continue;
 				}
 
 				rel.x = (chk->id.x*CHUNK_W + i)*BLOCK_LEN - pos.x;
@@ -632,8 +718,6 @@ void Render::RenderChunkThread::threadLoadChunk(render_pair pair, Render::Render
 	render_chunk *ren_chk = pair.first;
 	map_chunk *map_chk = pair.second;
 
-	//self->render->LoadChunk(ren_chk, map_chk, 1);
-
 	if (ren_chk == 0)
 		return;
 
@@ -662,6 +746,232 @@ void Render::RenderChunkThread::threadLoadChunk(render_pair pair, Render::Render
 			size++;
 	}
 
+	ren_chk->num_faces = size*6;
+
+	// size = #CUBES, required size = #CUBE*6*( (2+3)*4 )
+	GLfloat *vertices = 0;
+	vertices = new GLfloat[size*6*20];
+
+	if (vertices == 0) {
+		MessageBox(0, "VERTICES ALLOC FAILED", "haha", 0);
+		ren_chk->failed = 1;
+		return;
+	}
+
+	int count = 0;
+	// now generate vertex & quads
+	for (int i=0; i<CHUNK_W; i++) {
+		for (int j=0; j<CHUNK_L; j++) {
+			for (int k=0; k<CHUNK_H; k++) {
+				if (map_chk->blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden == 1)
+					continue;
+
+				int type = map_chk->blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].type;
+
+				if (type == Block::NUL)
+					continue;
+
+				for (int w=0; w<6; w++) { // 6 faces
+					float2 coord;
+					self->render->GetTextureCoordinates(type, w, coord);
+					float csize = 1/16.0f;
+
+					// texture coordinates are in the same order in each face except NX
+					if (w == NX) {
+						vertices[count*20 + 0] = coord.x;
+						vertices[count*20 + 1] = coord.y;
+						vertices[count*20 + 5] = coord.x;
+						vertices[count*20 + 6] = coord.y+csize;
+						vertices[count*20 + 10] = coord.x+csize;
+						vertices[count*20 + 11] = coord.y+csize;
+						vertices[count*20 + 15] = coord.x+csize;
+						vertices[count*20 + 16] = coord.y;
+					}
+					else {
+						vertices[count*20 + 0] = coord.x;
+						vertices[count*20 + 1] = coord.y;
+						vertices[count*20 + 5] = coord.x+csize;
+						vertices[count*20 + 6] = coord.y;
+						vertices[count*20 + 10] = coord.x+csize;
+						vertices[count*20 + 11] = coord.y+csize;
+						vertices[count*20 + 15] = coord.x;
+						vertices[count*20 + 16] = coord.y+csize;
+					}
+					// now setup vertex coordinates of each face
+					switch (w) {
+					case PZ:
+						vertices[count*20 + 2] = 0.0f;
+						vertices[count*20 + 3] = 0.0f;
+						vertices[count*20 + 4] = 1.0f;
+
+						vertices[count*20 + 7] = 1.0f;
+						vertices[count*20 + 8] = 0.0f;
+						vertices[count*20 + 9] = 1.0f;
+
+						vertices[count*20 + 12] = 1.0f;
+						vertices[count*20 + 13] = 1.0f;
+						vertices[count*20 + 14] = 1.0f;
+
+						vertices[count*20 + 17] = 0.0f;
+						vertices[count*20 + 18] = 1.0f;
+						vertices[count*20 + 19] = 1.0f;
+						break;
+					case NZ:
+						vertices[count*20 + 2] = 1.0f;
+						vertices[count*20 + 3] = 0.0f;
+						vertices[count*20 + 4] = 0.0f;
+
+						vertices[count*20 + 7] = 0.0f;
+						vertices[count*20 + 8] = 0.0f;
+						vertices[count*20 + 9] = 0.0f;
+
+						vertices[count*20 + 12] = 0.0f;
+						vertices[count*20 + 13] = 1.0f;
+						vertices[count*20 + 14] = 0.0f;
+
+						vertices[count*20 + 17] = 1.0f;
+						vertices[count*20 + 18] = 1.0f;
+						vertices[count*20 + 19] = 0.0f;
+						break;
+					case PY:
+						vertices[count*20 + 2] = 1.0f;
+						vertices[count*20 + 3] = 1.0f;
+						vertices[count*20 + 4] = 0.0f;
+
+						vertices[count*20 + 7] = 0.0f;
+						vertices[count*20 + 8] = 1.0f;
+						vertices[count*20 + 9] = 0.0f;
+
+						vertices[count*20 + 12] = 0.0f;
+						vertices[count*20 + 13] = 1.0f;
+						vertices[count*20 + 14] = 1.0f;
+
+						vertices[count*20 + 17] = 1.0f;
+						vertices[count*20 + 18] = 1.0f;
+						vertices[count*20 + 19] = 1.0f;
+						break;
+					case NY:
+						vertices[count*20 + 2] = 0.0f;
+						vertices[count*20 + 3] = 0.0f;
+						vertices[count*20 + 4] = 0.0f;
+
+						vertices[count*20 + 7] = 1.0f;
+						vertices[count*20 + 8] = 0.0f;
+						vertices[count*20 + 9] = 0.0f;
+
+						vertices[count*20 + 12] = 1.0f;
+						vertices[count*20 + 13] = 0.0f;
+						vertices[count*20 + 14] = 1.0f;
+
+						vertices[count*20 + 17] = 0.0f;
+						vertices[count*20 + 18] = 0.0f;
+						vertices[count*20 + 19] = 1.0f;
+						break;
+					case PX:
+						vertices[count*20 + 2] = 1.0f;
+						vertices[count*20 + 3] = 0.0f;
+						vertices[count*20 + 4] = 0.0f;
+
+						vertices[count*20 + 7] = 1.0f;
+						vertices[count*20 + 8] = 1.0f;
+						vertices[count*20 + 9] = 0.0f;
+
+						vertices[count*20 + 12] = 1.0f;
+						vertices[count*20 + 13] = 1.0f;
+						vertices[count*20 + 14] = 1.0f;
+
+						vertices[count*20 + 17] = 1.0f;
+						vertices[count*20 + 18] = 0.0f;
+						vertices[count*20 + 19] = 1.0f;
+						break;
+					case NX:
+						vertices[count*20 + 2] = 0.0f;
+						vertices[count*20 + 3] = 0.0f;
+						vertices[count*20 + 4] = 0.0f;
+
+						vertices[count*20 + 7] = 0.0f;
+						vertices[count*20 + 8] = 0.0f;
+						vertices[count*20 + 9] = 1.0f;
+
+						vertices[count*20 + 12] = 0.0f;
+						vertices[count*20 + 13] = 1.0f;
+						vertices[count*20 + 14] = 1.0f;
+
+						vertices[count*20 + 17] = 0.0f;
+						vertices[count*20 + 18] = 1.0f;
+						vertices[count*20 + 19] = 0.0f;
+						break;
+					}
+
+					// translate to relative position
+					for (int s=0; s<4; s++) {
+						vertices[count*20 + s*5 + 2] += (GLfloat)i;
+						vertices[count*20 + s*5 + 3] += (GLfloat)j;
+						vertices[count*20 + s*5 + 4] += (GLfloat)k;
+					}
+
+					// next face
+					count++;
+				}
+			}
+		}
+	}
+	
+	glGenBuffersARB(1, &ren_chk->vbo);
+	glBindBufferARB(GL_ARRAY_BUFFER_ARB, ren_chk->vbo);
+
+	// now upload to graphics card
+	glBufferDataARB(GL_ARRAY_BUFFER_ARB, size*6*20*sizeof(GLfloat), vertices, GL_STATIC_DRAW_ARB);
+
+	GLenum err = glGetError();
+	if (err != 0) {
+		MessageBox(0, "glGenBuffer ERROR!!", "aha", 0);
+	}
+
+	delete[] vertices;
+	vertices = 0;
+
+	glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
+
+	ren_chk->loaded = 1;
+}
+
+void Render::RenderChunkThread::threadLoadChunk2(render_pair pair, Render::RenderChunkThread *self) {
+	render_chunk *ren_chk = pair.first;
+	map_chunk *map_chk = pair.second;
+
+	if (ren_chk == 0)
+		return;
+
+	ren_chk->failed = 0;
+	ren_chk->loaded = 0;
+	ren_chk->unneeded = 0;
+
+	if (map_chk == 0 || ren_chk->id != map_chk->id) {
+		ren_chk->failed = 1;
+		return;
+	}
+
+	if (map_chk->loaded == 0 || map_chk->failed == 1 || map_chk->unneeded == 1) {
+		ren_chk->failed = 1;
+		return;
+	}
+
+	// calculate how many blocks we need to store in VBO and its required size
+	self->render->CalculateVisible2(map_chk->id);
+
+	int size = 0;
+	for (int i=0; i<CHUNK_W; i++) {
+		for (int j=0; j<CHUNK_L; j++) {
+			for (int k=0; k<CHUNK_H; k++) {
+				if (map_chk->blocks[i].type == Block::NUL)
+					continue;
+				if (map_chk->blocks[i].hidden == 0)
+					ren_chk->blockList.insert( std::pair<int3, Block *>(int3(i, j, k), &map_chk->blocks[i]) );
+			}
+		}
+	}
+	////////////////////////////////////////awefawefawefawef
 	ren_chk->num_faces = size*6;
 
 	// size = #CUBES, required size = #CUBE*6*( (2+3)*4 )

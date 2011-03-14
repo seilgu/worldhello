@@ -144,12 +144,12 @@ int DrawGLScene(GLvoid)
 		glScalef(20, 20, 1);
 		
 		glPushMatrix();
-		//glPrint("FPS:%4.0f %d,%d,%d", fps, id.x, id.y, id.z);
+		glPrint("FPS:%4.0f %d,%d,%d", fps, id.x, id.y, id.z);
 		glPopMatrix();
 
 		glPushMatrix();
 		glTranslatef(0, 1, 0);
-		//glPrint("%s", buffer);
+		glPrint("%s", buffer);
 		glPopMatrix();
 
 		//s_World->world_map.PrintChunkStatistics(buffer);
