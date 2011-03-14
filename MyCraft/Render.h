@@ -46,6 +46,11 @@ extern class TextureMgr *s_Texture;
 	A singleton class that handles graphics drawing, 
 	given the player's position, it decides how far it will draw
 *************************************************************************/
+
+/***********************************************************
+	now that you use std::vector to store T2F_V3F
+
+************************************************************/
 struct render_chunk {
 	int3 id;
 	int num_faces;
@@ -66,10 +71,12 @@ public :
 	static const int PX = 4;
 	static const int NX = 5;
 
+	bool useVBO;
 
 	render_list r_chunks;
 
-	Render() {
+	Render(bool supportVBO) {
+		useVBO = supportVBO;
 		BeginWorkThread();
 	}
 	~Render();
@@ -89,10 +96,12 @@ public :
 		m_Thread = 0;
 	}
 
+	render_chunk *CreateEmptyChunk();
 	void DeleteChunk(render_chunk *chk);
 	void LoadChunk(render_chunk *ren_chk, map_chunk *map_chk, int urgent);
 
-	void CalculateVisible(int3 id);
+	void CalculateVisible2(int3 id);
+	void CheckChunkSide(int3 id, int dir);
 	void LoadNeededChunks(float3 pos, float3 dir, World *world);
 	void DiscardUnneededChunks(float3 pos, float3 dir, World *world);
 	// Draw to screen

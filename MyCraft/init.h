@@ -17,6 +17,9 @@ PFNGLUNMAPBUFFERARBPROC glUnmapBufferARB;                   // unmap VBO procedu
 #define HEIGHT	800
 #define PI2			6.2831853f
 
+float fovY = 45.0f;
+float zNear = 1.0f;
+
 int _width	= WIDTH;
 int _height = HEIGHT;
 
@@ -37,6 +40,8 @@ GLuint				box;
 GLuint				base;
 GLuint				texture[1];							// Crate.bmp texture
 GLYPHMETRICSFLOAT	gmf[256];
+
+bool supportVBO;
 
 int DrawGLScene();
 GLvoid ReSizeGLScene(GLsizei, GLsizei);
@@ -136,13 +141,14 @@ GLvoid ReSizeGLScene(GLsizei width, GLsizei height)		// Resize And Initialize Th
 	glLoadIdentity();
 
 	//glOrtho(0, width, 0, height, -1, 1);
-	gluPerspective(45.0f, (GLfloat)width/(GLfloat)height, 0.1f, 10000.0f);
+	//gluPerspective(45.0f, (GLfloat)width/(GLfloat)height, 10.0f, 1000.0f);
+	gluPerspective(fovY, (GLfloat)width/(GLfloat)height, zNear, 1000.0f);
 
 	glMatrixMode(GL_MODELVIEW);							// Select The Modelview Matrix
 	glLoadIdentity();									// Reset The Modelview Matrix
 }
 
-void CheckVBOSupport() {
+bool CheckVBOSupport() {
 	glGenBuffersARB = 0;                     // VBO Name Generation Procedure
 	glBindBufferARB = 0;                     // VBO Bind Procedure
 	glBufferDataARB = 0;                     // VBO Data Loading Procedure
@@ -163,8 +169,11 @@ void CheckVBOSupport() {
 	
 	if(glGenBuffersARB && glBindBufferARB && glBufferDataARB && glBufferSubDataARB &&
            glMapBufferARB && glUnmapBufferARB && glDeleteBuffersARB && glGetBufferParameterivARB)
-	{} else {
+	{
+		return true;
+	} else {
 		MessageBox(0, "VBO not supported", "haha", 0);
+		return false;
     }
 }
 

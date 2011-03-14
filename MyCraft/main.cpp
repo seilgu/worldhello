@@ -13,6 +13,7 @@
 #include "World.h"
 #include "texture.h"
 #include "Player.h"
+#include "File.h"
 #include "Debug.h"
 
 int currX, currY;
@@ -22,6 +23,7 @@ Render *s_Render;
 World *s_World;
 TextureMgr *s_Texture;
 Player *m_Player;
+FileMgr *s_File;
 
 // WINAPI event procedure
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -91,8 +93,8 @@ int DrawGLScene(GLvoid)
 		SetCursorPos(500, 500);
 	}
 
-	if (m_Player->theta < 0.01) m_Player->theta = 0.01f; // theta=0 leads to null crossproduct with unit_z
-	if (m_Player->theta > PI) m_Player->theta = PI;
+	if (m_Player->theta < 0.01) m_Player->theta = 0.0001f; // theta=0 leads to null crossproduct with unit_z
+	if (m_Player->theta > PI) m_Player->theta = PI-0.0001f;
 	if (m_Player->phi > 2*PI) m_Player->phi -= 2*PI;
 	if (m_Player->phi < 0) m_Player->phi += 2*PI;
 
@@ -113,8 +115,6 @@ int DrawGLScene(GLvoid)
 	if (keys['D'] == TRUE) {
 		m_Player->eyepos = m_Player->eyepos - crpd/2.0;
 	}
-
-	
 
 	QueryPerformanceCounter(&lastTick);
 	s_Render->LoadNeededChunks(m_Player->eyepos, m_Player->dir, s_World);
@@ -144,28 +144,27 @@ int DrawGLScene(GLvoid)
 		glScalef(20, 20, 1);
 		
 		glPushMatrix();
-		glPrint("FPS:%4.0f %d,%d,%d", fps, id.x, id.y, id.z);
+		//glPrint("FPS:%4.0f %d,%d,%d", fps, id.x, id.y, id.z);
 		glPopMatrix();
 
 		glPushMatrix();
 		glTranslatef(0, 1, 0);
-		glPrint("%s", buffer);
+		//glPrint("%s", buffer);
 		glPopMatrix();
 
 		//s_World->world_map.PrintChunkStatistics(buffer);
 	
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	gluPerspective(45.0f, (GLfloat)_width/(GLfloat)_height, 0.1f, 10000.0f);
-	//glMatrixMode(GL_MODELVIEW);
-	//glLoadIdentity();
-
+	//gluPerspective(45.0f, (GLfloat)_width/(GLfloat)_height, 1.0f, 1000.0f);
+	gluPerspective(fovY, (GLfloat)_width/(GLfloat)_height, zNear, 1000.0f);
 
 	return TRUE;
 }
 
 void InitClasses() {
-	s_Render = new Render();
+	s_File = new FileMgr();
+	s_Render = new Render(supportVBO);
 	s_World = new World();
 	s_Texture = new TextureMgr();
 	m_Player = new Player();
@@ -180,11 +179,14 @@ void DeInitClasses() {
 		delete s_Texture;
 	if (m_Player != 0)
 		delete m_Player;
+	if (s_File != 0)
+		delete s_File;
 
 	s_Render = 0;
 	s_World = 0;
 	s_Texture = 0;
 	m_Player = 0;
+	s_File = 0;
 }
 
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nCmdShow)
@@ -197,7 +199,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 	if (!CreateGLWindow())
 		return 0;
 
-	CheckVBOSupport();
+	supportVBO = CheckVBOSupport();
 
 	/************* Game things ***************/
 	InitClasses();

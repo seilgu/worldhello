@@ -17,9 +17,6 @@
 #include <map>
 #include <queue>
 
-#define CHUNK_W 16
-#define CHUNK_L 16
-#define CHUNK_H 128
 
 
 
@@ -54,17 +51,6 @@ struct map_chunk {
 	Block *blocks;
 };
 
-struct id_compare
-{
-	bool operator()(int3 a, int3 b) const { // is a < b ?
-		if (a.x != b.x)
-			return (a.x - b.x < 0);
-		else if (a.y != b.y)
-			return (a.y - b.y < 0);
-		else
-			return (a.z - b.z < 0);
-	}
-};
 
 template <class T>
 class ThreadSafeQueue : public std::queue<T> {
@@ -143,6 +129,7 @@ public :
 	void DiscardUnneededChunks();
 	chunk_list *GetChunkList();
 	void PrintChunkStatistics(char *buffer);
+	map_chunk *Map::CreateEmptyChunk();
 };
 
 

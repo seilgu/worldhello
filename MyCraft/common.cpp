@@ -9,6 +9,7 @@ void Sleep(int millisec)
 {
 	sleep(millisec);
 }
+#else
 WORD HueToRGB(WORD n1, WORD n2, WORD hue)
 {
 	/* range check: note values passed add/subtract thirds of range */ 
@@ -68,6 +69,10 @@ FILE *OpenFile(char *filename) {
 	fp = fopen(filename, "r");
 #endif
 	return fp;
+}
+
+float3 operator*(float c, float3 &f2) {
+	return float3(c*f2.x, c*f2.y, c*f2.z);
 }
 
 void print_chunk_filename(int3 id, char *dst) {

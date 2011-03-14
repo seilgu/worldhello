@@ -35,6 +35,14 @@ void Sleep(int millisec);
 #define snprintf sprintf_s
 #endif
 
+#define CHUNK_W 16
+#define CHUNK_L 16
+#define CHUNK_H 128
+
+#define CLAMPW(i) ((i)<0 ? 0 : ((i)>=CHUNK_W ? CHUNK_W-1 : (i)))
+#define CLAMPL(i) ((i)<0 ? 0 : ((i)>=CHUNK_L ? CHUNK_L-1 : (i)))
+#define CLAMPH(i) ((i)<0 ? 0 : ((i)>=CHUNK_H ? CHUNK_H-1 : (i)))
+
 struct int3;
 
 void tobase36(int from, char to[]);
@@ -79,6 +87,8 @@ struct float3 {
 	float3 operator/(float f2);
 };
 
+float3 operator*(float c, float3 &f2);
+
 struct double3 {
 	double x, y, z;
 };
@@ -99,7 +109,7 @@ inline void normalize(float3 &v) {
 	v.z /= len;
 }
 
-inline float3 cross_prod(float3 a, float3 b) {
+inline float3 cross_prod(float3 &a, float3 &b) {
 	return float3(a.y*b.z - a.z*b.y, a.z*b.x - a.x*b.z, a.x*b.y - a.y*b.x);
 }
 
@@ -107,15 +117,15 @@ inline float3 spher2car(float theta, float phi) {
 	return float3(sin(theta)*cos(phi), sin(theta)*sin(phi), cos(theta));
 }
 
-inline float dot_prod(float3 a, float3 b) {
+inline float dot_prod(float3 &a, float3 &b) {
 	return a.x*b.x + a.y*b.y + a.z*b.z;
 }
 
-inline int dot_prod(int3 a, int3 b) {
+inline int dot_prod(int3 &a, int3 &b) {
 	return a.x*b.x + a.y*b.y + a.z*b.z;
 }
 
-inline float dot_prod(int3 a, float3 b) {
+inline float dot_prod(int3 &a, float3 &b) {
 	return a.x*b.x + a.y*b.y + a.z*b.z;
 }
 

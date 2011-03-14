@@ -1,31 +1,9 @@
-#include "Map.h"
+
 #include <stdio.h>
+#include <stdlib.h>
 #include <math.h>
-
-// ugly transform to[4]
-void tobase36(int from, char to[]) {
-	if (from >= 0) {
-		to[0] = '+';
-	}
-	else {
-		to[0] = '-';
-		from = -from;
-	}
-
-	to[3] = '\0';
-
-	int tmp;
-	for (int i=2; i>0; i--) {
-		tmp = from%36;
-		if (tmp >= 0 && tmp <= 9) {
-			to[i] = '0' + tmp;
-		}
-		else {
-			to[i] = 'A' + (tmp - 10);
-		}
-		from /= 36;
-	}
-}
+#include "Map.h"
+#include "File.h"
 
 void Map::DeleteChunk(map_chunk *chk) {
 	if (chk == 0)
@@ -72,7 +50,7 @@ void Map::PrintChunkStatistics(char *buffer) {
 		total++;
 	}
 
-	sprintf(buffer, "Failed: %d Loaded:%d Unneeded:%d Total:%d", failed, loaded, unneeded, total);
+	snprintf(buffer, 128, "Failed: %d Loaded:%d Unneeded:%d Total:%d", failed, loaded, unneeded, total);
 }
 
 void Map::MarkUnneededChunks(float3 pos, float3 dir) {
@@ -136,71 +114,57 @@ void Map::LoadNeededChunks(float3 pos, float3 dir) {
 				tmp.z = id.z + k;
 
 				if (m_chunks.find(tmp) == m_chunks.end()) { // not loaded
-					LoadChunk(tmp, 1);
+					LoadChunk(tmp, 0);
 				}
 			}
 		}
 	}
 }
 
+extern FileMgr *s_File;
 int Map::ChunkFileExists(int3 id) {
-	char bx[4], by[4], bz[4];
-	char filename[32];
-	
-	tobase36(id.x, bx);
-	tobase36(id.y, by);
-	tobase36(id.z, bz);
-
-#ifndef APPLE
-	snprintf(filename, 32, ".\\map\\%s%s%s.chk", bx, by, bz);
-#else
-	snprintf(filename, 32, "./map/%s%s%s.chk", bx, by, bz);
-#endif
-
-	FILE *fp = 0;
-#ifndef APPLE
-	fopen_s(&fp, filename, "r");
-#else
-	fp = fopen(filename, "r");
-#endif
-
-	if (fp != 0) {
-		fclose(fp);
-		return 1;
+	if (s_File == 0) {
+		MessageBox(0, "FileMgr not yet initialized!!", "haha", 0);
+		return 0;
 	}
 
-	return 0;
+	return s_File->QueryChunk(id);
 }
 
-void Map::LoadChunk(int3 id, int urgent) {
-
-	if (ChunkFileExists(id) == 0) // will need faster file checking
-		return;
-
+map_chunk *Map::CreateEmptyChunk() {
 	map_chunk *chk = 0;
 	chk = new map_chunk();
-	if (chk == 0) {
-		MessageBox(0, "map_chunk alloc failed", "haha", 0);
-		return;
-	}
 
+	if (chk == 0)
+		return 0;
+
+	chk->id = int3(0, 0, 0);
 	chk->failed = 0;
 	chk->unneeded = 0;
 	chk->loaded = 0;
 	chk->blocks = 0;
-	chk->id = id;
 
-	if (m_chunks.find(chk->id) != m_chunks.end()) {
-		delete chk;
+	return chk;
+}
+
+void Map::LoadChunk(int3 id, int urgent) {
+	if (ChunkFileExists(id) == 0) // will need faster file checking
+		return;
+
+	if (m_chunks.find(id) != m_chunks.end()) {
 		return;
 	}
+	
+	map_chunk *chk = CreateEmptyChunk();
 
-	if (urgent == 0) {
+	chk->id = id;
+
+	if (urgent == 0) { // Use multithread
 		// insert first to ensure no further insertion into the same place is possible
 		m_chunks.insert( std::pair<int3, map_chunk *>(chk->id, chk) );
-		m_Thread->PushJobs(chk);		
+		m_Thread->PushJobs(chk);
 	}
-	else {
+	else { // No multithread, load now
 		m_Thread->threadLoadChunk(chk);
 		m_chunks.insert( std::pair<int3, map_chunk *>(chk->id, chk) );
 	}
@@ -234,11 +198,6 @@ void Map::MapChunkThread::threadLoadChunk(map_chunk *chk) {
 	if (chk == 0) // impossible
 		return;
 
-	chk->failed = 0;
-	chk->unneeded = 0;
-	chk->loaded = 0;
-	chk->blocks = 0;
-
 	chk->blocks = new Block[CHUNK_W*CHUNK_L*CHUNK_H];
 
 	if (chk->blocks == 0) {
@@ -247,25 +206,10 @@ void Map::MapChunkThread::threadLoadChunk(map_chunk *chk) {
 		return;
 	}
 
-	char bx[4], by[4], bz[4];
 	char filename[32];
+	print_chunk_filename(chk->id, filename);
 	
-	tobase36(chk->id.x, bx);
-	tobase36(chk->id.y, by);
-	tobase36(chk->id.z, bz);
-
-	FILE *fp = 0;
-#ifndef APPLE
-	snprintf(filename, 32, ".\\map\\%s%s%s.chk", bx, by, bz);
-#else
-	snprintf(filename, 32, "./map/%s%s%s.chk", bx, by, bz);
-#endif
-
-#ifndef APPLE
-	fopen_s(&fp, filename, "r");
-#else
-	fp = fopen(filename, "r");
-#endif
+	FILE *fp = OpenFile(filename);
 	
 	if (fp == 0) {
 		chk->failed = 1;
@@ -280,13 +224,14 @@ void Map::MapChunkThread::threadLoadChunk(map_chunk *chk) {
 	fread(type, 1, sizeof(unsigned short int)*CHUNK_W*CHUNK_L*CHUNK_H, fp);
 
 	fclose(fp);
-	fp = 0;
 	
 	// blockss
 	for (int i=0; i<CHUNK_W; i++) {
 		for (int j=0; j<CHUNK_L; j++) {
 			for (int k=0; k<CHUNK_H; k++) {
-				(chk->blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i]).type = type[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i];
+				unsigned short int t = type[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i];
+				(chk->blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i]).type = t;
+				chk->blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque = (t == Block::NUL ? 0 : 1);
 			}
 		}
 	}

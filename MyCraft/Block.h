@@ -10,9 +10,10 @@ public:
 	static const int GRASS = 2;
 	static const int SOIL = 3;
 
-	unsigned short active;
-	unsigned short hidden;
 	unsigned short type;
+	unsigned short active:1;
+	unsigned short hidden:1;
+	unsigned short opaque:1;
 
 	Block() {
 		active = 0;
