@@ -460,7 +460,7 @@ void Render::RenderChunk(render_chunk *tmp, float3 pos, float3 dir) {
 		float3 n(id.x+1.0f, id.y+1.0f, id.z+1.0f);
 		switch (w) {
 		case 0:
-			normal = cross_prod(zNear*dir + rhs*zNear, upside);
+			normal = cross_prod( zNear*dir + zNear*rhs, upside);
 			break;
 		case 1:
 			normal = cross_prod(upside, zNear*dir - rhs*zNear);

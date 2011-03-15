@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include "asmlibran.h"
+#include <time.h>
 
 struct int3 {
 	int3(int xx, int yy, int zz) : x(xx), y(yy), z(zz) {}
@@ -86,7 +87,15 @@ int generate_terrain(short int *terrain, int3 offset, int3 dim) {
 				pos.x = offset.x + i;
 				pos.y = offset.y + j;
 				pos.z = offset.z + k;
+<<<<<<< HEAD
 				
+=======
+#ifndef APPLE
+				int test = MersenneIRandom(0, 10);
+#else
+				int test = rand()%10;
+#endif	
+>>>>>>> 0161ea08c5eb26fb8dc3d49db33d9f6de5937fbd
 				terrain[k*dim.x*dim.y + j*dim.x + i] = 0;
 				if (pos.z < height) {
 					terrain[k*dim.x*dim.y + j*dim.x + i] = 3;
@@ -142,10 +151,18 @@ int generate_chunk(int3 chkid, int3 dim, unsigned int id) {
 	tobase36(chkid.y, tempj);
 	tobase36(chkid.z, tempk);
 	
+#ifndef APPLE
 	sprintf_s(filename, "../MyCraft/map/%s%s%s.chk", tempi, tempj, tempk);
+#else
+	snprintf(filename, 64, "../MyCraft/map/%s%s%s.chk", tempi, tempj, tempk);
+#endif
 
 	FILE *fp = 0;
+#ifndef APPLE
 	fopen_s(&fp, filename, "w");
+#else
+	fp = fopen(filename, "w");
+#endif
 	fwrite(&chk, 1, sizeof(chunk_header), fp);
 	fwrite(terrain, 1, dim.x*dim.y*dim.z*sizeof(short int), fp);
 	fclose(fp);
@@ -156,8 +173,11 @@ int generate_chunk(int3 chkid, int3 dim, unsigned int id) {
 }
 
 int main(int agrc, char *argv[]) {
-
+#ifndef APPLE
 	MersenneRandomInit((int)ReadTSC());
+#else
+	srand(time(0));
+#endif
 	// parameters
 	int3 chkid;
 	int3 dim(16, 16, 128);

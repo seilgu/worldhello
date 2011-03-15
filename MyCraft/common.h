@@ -20,15 +20,20 @@ DWORD HLStoRGB(WORD hue, WORD lum, WORD sat);
 #endif
 
 #ifdef APPLE
-//////////////////////////////////  trash area
+//////////////////////////////////  macLayer
 #include <unistd.h>
 #include <OpenGL/glu.h>
 typedef GLushort	WORD;
 typedef GLuint		DWORD;
 typedef GLint		LONG;
+typedef GLboolean	BOOL;
+
+#define TRUE	true
+#define FALSE	false
 
 void MessageBox(int handler, const char *message, const char *title, int button);
 void Sleep(int millisec);
+GLvoid glPrint(const char *fmt, ...);					// Custom GL "Print" Routine
 #endif
 
 #ifdef _MSC_VER
@@ -79,10 +84,10 @@ struct float3 {
 	float x, y, z;
 	float3() : x(0), y(0), z(0) {}
 	float3(float xx, float yy, float zz) : x(xx), y(yy), z(zz) {}
-	float3 operator+(float3 &f2);
-	float3 operator-(float3 &f2);
-	float3 operator+=(float3 &f2);
-	float3 operator-=(float3 &f2);
+	float3 operator+(const float3 f2) const;
+	float3 operator-(const float3 f2) const;
+	float3 operator+=(const float3 f2);
+	float3 operator-=(const float3 f2);
 	float3 operator*(float f2);
 	float3 operator/(float f2);
 };
@@ -109,7 +114,7 @@ inline void normalize(float3 &v) {
 	v.z /= len;
 }
 
-inline float3 cross_prod(float3 &a, float3 &b) {
+inline float3 cross_prod(const float3 a, const float3 b) {
 	return float3(a.y*b.z - a.z*b.y, a.z*b.x - a.x*b.z, a.x*b.y - a.y*b.x);
 }
 

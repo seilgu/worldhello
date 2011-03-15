@@ -9,6 +9,10 @@ void Sleep(int millisec)
 {
 	sleep(millisec);
 }
+
+GLvoid glPrint(const char *fmt, ...)					// Custom GL "Print" Routine
+{
+}
 #else
 WORD HueToRGB(WORD n1, WORD n2, WORD hue)
 {
@@ -114,20 +118,20 @@ void tobase36(int from, char to[]) {
 	}
 }
 
-float3 float3::operator+(float3 &f2) {
+float3 float3::operator+(const float3 f2) const {
 	return float3(x+f2.x, y+f2.y, z+f2.z);
 }
 
-float3 float3::operator-(float3 &f2) {
+float3 float3::operator-(const float3 f2) const {
 	return float3(x-f2.x, y-f2.y, z-f2.z);
 }
 
-float3 float3::operator+=(float3 &f2) {
+float3 float3::operator+=(const float3 f2){
 	x += f2.x; y += f2.y; z += f2.z;
 	return *this;
 }
 
-float3 float3::operator-=(float3 &f2) {
+float3 float3::operator-=(const float3 f2){
 	x -= f2.x; y -= f2.y; z -= f2.z;
 	return *this;
 }

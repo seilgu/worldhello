@@ -124,7 +124,7 @@ public :
 	void DiscardUnneededChunks();
 	chunk_list *GetChunkList();
 	void PrintChunkStatistics(char *buffer);
-	map_chunk *Map::CreateEmptyChunk();
+	map_chunk *CreateEmptyChunk();
 };
 
 

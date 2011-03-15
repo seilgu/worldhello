@@ -1,10 +1,17 @@
-#include <windows.h>
-#include <process.h>
+#ifndef APPLE
+	#include <windows.h>
+	#include <process.h>
+	#include <commctrl.h>
+	#include <gl\gl.h>
+	#include <gl\glu.h>
+#else
+	#include <OpenGL/gl.h>
+	#include <OpenGL/glu.h>
+	#include <GLUT/glut.h>
+#endif
+
 #include <stdio.h>
-#include <gl\gl.h>
-#include <gl\glu.h>
 #include <time.h>
-#include <commctrl.h>
 #include <math.h>
 
 #include "asmlibran.h"
@@ -16,6 +23,7 @@
 #include "File.h"
 #include "Debug.h"
 
+
 int currX, currY;
 int prevX, prevY;
 
@@ -24,6 +32,13 @@ World *s_World;
 TextureMgr *s_Texture;
 Player *m_Player;
 FileMgr *s_File;
+
+#ifdef APPLE
+#include "macLayer.h"
+#endif
+
+
+#ifndef APPLE
 
 // WINAPI event procedure
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -75,23 +90,32 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
-DWORD tick1, tick2;
 POINT cs;
 // FPS
+
+#endif
+
 int framecount = 0;
 double fps = 0;
+
+DWORD tick1, tick2;
+#ifndef APPLE
 int DrawGLScene(GLvoid)
+#else
+void DrawGLScene()
+#endif
 {
 	glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 	
 	// Ugly mouse handling
-	
+#ifndef APPLE	
 	if (captureMouse) {
 		GetCursorPos(&cs);
 		m_Player->phi += -(cs.x - 500)/1000.0f;
 		m_Player->theta += -(cs.y - 500)/1000.0f;
 		SetCursorPos(500, 500);
 	}
+#endif
 
 	if (m_Player->theta < 0.01) m_Player->theta = 0.0001f; // theta=0 leads to null crossproduct with unit_z
 	if (m_Player->theta > PI) m_Player->theta = PI-0.0001f;
@@ -115,12 +139,15 @@ int DrawGLScene(GLvoid)
 	if (keys['D'] == TRUE) {
 		m_Player->eyepos = m_Player->eyepos - crpd/2.0;
 	}
-
+#ifndef APPLE
 	QueryPerformanceCounter(&lastTick);
+#endif
 	s_Render->LoadNeededChunks(m_Player->eyepos, m_Player->dir, s_World);
 	s_Render->DiscardUnneededChunks(m_Player->eyepos, m_Player->dir, s_World);
 	s_Render->DrawScene(m_Player->eyepos, m_Player->dir, 400);
+#ifndef APPLE
 	QueryPerformanceCounter(&currTick);
+#endif
 	
 	
 
@@ -131,9 +158,9 @@ int DrawGLScene(GLvoid)
 	int3 id((int)floor(pos.x / (BLOCK_LEN*CHUNK_W)), 
 		(int)floor(pos.y / (BLOCK_LEN*CHUNK_L)), 
 		(int)floor(pos.z / (BLOCK_LEN*CHUNK_H)));
-	
+#ifndef APPLE
 	fps = tickFreq/(currTick.LowPart - lastTick.LowPart);
-
+#endif
 	char buffer[128];
 	s_Render->PrintChunkStatistics(buffer);
 
@@ -141,25 +168,29 @@ int DrawGLScene(GLvoid)
 	glLoadIdentity();
 	glOrtho(0, _width, 0, _height, -1, 1);
 
-		glScalef(20, 20, 1);
-		
-		glPushMatrix();
-		glPrint("FPS:%4.0f %d,%d,%d", fps, id.x, id.y, id.z);
-		glPopMatrix();
+	glScalef(20, 20, 1);
 
-		glPushMatrix();
-		glTranslatef(0, 1, 0);
-		glPrint("%s", buffer);
-		glPopMatrix();
+	glPushMatrix();
+	glPrint("FPS:%4.0f %d,%d,%d", fps, id.x, id.y, id.z);
+	glPopMatrix();
 
-		//s_World->world_map.PrintChunkStatistics(buffer);
+	glPushMatrix();
+	glTranslatef(0, 1, 0);
+	glPrint("%s", buffer);
+	glPopMatrix();
+
+	//s_World->world_map.PrintChunkStatistics(buffer);
 	
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 	//gluPerspective(45.0f, (GLfloat)_width/(GLfloat)_height, 1.0f, 1000.0f);
 	gluPerspective(fovY, (GLfloat)_width/(GLfloat)_height, zNear, 1000.0f);
 
+#ifdef APPLE
+	glutSwapBuffers();
+#else
 	return TRUE;
+#endif
 }
 
 void InitClasses() {
@@ -189,6 +220,8 @@ void DeInitClasses() {
 	s_File = 0;
 }
 
+#ifndef APPLE
+
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nCmdShow)
 {
 	MSG		msg;
@@ -202,14 +235,11 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 	supportVBO = CheckVBOSupport();
 
 	/************* Game things ***************/
-	InitClasses();
-
 	ShowWindow(hWnd, SW_SHOW);
-
 	ReSizeGLScene(WIDTH, HEIGHT);
-
+	InitClasses();
+	
 	/************* GL things ***************/
-
 	if (!InitGL()) {
 		MessageBox(0, "Fail to init GL", "ERROR", MB_OK);
 		return FALSE;
@@ -271,3 +301,50 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 
 	return 0;
 }
+
+#else
+int main(int argc, char** argv)
+{
+	GLenum type;
+
+	glutInit(&argc, argv);
+
+	type = GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH;
+	glutInitDisplayMode(type); 
+
+	glutInitWindowSize(800 ,600);
+	glutCreateWindow("ABGR extension");
+
+	supportVBO = false;
+	
+	/************* Game things ***************/
+	ReSizeGLScene(WIDTH, HEIGHT);
+	InitClasses();
+	
+	/************* GL things ***************/
+	if (!InitGL()) {
+		fprintf( stderr, "Init GL failed. End.\n");
+		exit(0);
+	}
+	// load textures
+	s_Texture->LoadAllTextures();
+
+	//************* Game preinit ***************/
+
+	s_World->LoadWorld();
+
+	m_Player->eyepos = float3(20, 20, 20);
+	m_Player->theta = PI/2;
+	m_Player->phi = PI/4;
+
+	glutKeyboardFunc(Key);
+	glutDisplayFunc(DrawGLScene);
+	glutIdleFunc(glutPostRedisplay);
+	glutPassiveMotionFunc(Motion);
+	glutMainLoop();
+
+
+	DeInitClasses();
+	return 0;
+}
+#endif
