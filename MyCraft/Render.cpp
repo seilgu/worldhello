@@ -774,7 +774,10 @@ void Render::RenderChunkThread::threadLoadChunk(render_pair pair, Render::Render
 				for (int w=0; w<6; w++) { // 6 faces
 					float2 coord;
 					self->render->GetTextureCoordinates(type, w, coord);
+					coord.x += 0.01f;
+					coord.y += 0.01f;
 					float csize = 1/16.0f;
+					csize -= 0.02f;
 
 					// texture coordinates are in the same order in each face except NX
 					if (w == NX) {
