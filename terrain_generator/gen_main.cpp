@@ -81,21 +81,21 @@ int generate_terrain(short int *terrain, int3 offset, int3 dim) {
 	int3 pos;
 	for (int i=0; i<dim.x; i++) {
 		for (int j=0; j<dim.y; j++) {
+			int height = MersenneIRandom(0, 40);
 			for (int k=0; k<dim.z; k++) {
 				pos.x = offset.x + i;
 				pos.y = offset.y + j;
 				pos.z = offset.z + k;
-				int test = MersenneIRandom(0, 10);
 				
 				terrain[k*dim.x*dim.y + j*dim.x + i] = 0;
-				if (pos.z < 1) {
+				if (pos.z < height) {
 					terrain[k*dim.x*dim.y + j*dim.x + i] = 3;
 				}
-				if (pos.z == 1) {
+				if (pos.z == height) {
 					terrain[k*dim.x*dim.y + j*dim.x + i] = 2;
 				}
-				if (pos.z == 2) {
-					if (test == 0) {
+				if (pos.z == height+1) {
+					if (MersenneIRandom(0, 10) == 0) {
 						terrain[k*dim.x*dim.y + j*dim.x + i] = 1;
 					}
 				}
