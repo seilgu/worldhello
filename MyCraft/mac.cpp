@@ -22,8 +22,6 @@ World *s_World;
 TextureMgr *s_Texture;
 Player *m_Player;
 
-GLenum doubleBuffer;
-
 bool keys[200];
 
 static void Motion(int x, int y)
@@ -135,7 +133,6 @@ void DrawGLScene()
 	char buffer[128];
 	s_Render->PrintChunkStatistics(buffer);
 
-
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 	glOrtho(0, _width, 0, _height, -1, 1);
@@ -161,7 +158,7 @@ void DrawGLScene()
 }
 
 void InitClasses() {
-	s_Render = new Render();
+	s_Render = new Render(true);
 	s_World = new World();
 	s_Texture = new TextureMgr();
 	m_Player = new Player();
@@ -185,65 +182,42 @@ void DeInitClasses() {
 
 int main(int argc, char** argv)
 {
-	//	ShowWindow(hWnd, SW_SHOW);
-
-
 	GLenum type;
 
 	glutInit(&argc, argv);
 
 	type = GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH;
-//	type = GLUT_RGB; 
-//	type |= (doubleBuffer) ? GLUT_DOUBLE : GLUT_SINGLE; 
 	glutInitDisplayMode(type); 
 
 	glutInitWindowSize(800 ,600);
 	glutCreateWindow("ABGR extension");
-	//	if (!glutExtensionSupported("GL_EXT_abgr")) {
-	//		printf("Couldn't find abgr extension.\n");
-	//		exit(0);
-	//	}
-	
-	CheckVBOSupport();
+	supportVBO = CheckVBOSupport();
 	
 	/************* Game things ***************/
-	InitClasses();
-
-
 	ReSizeGLScene(WIDTH, HEIGHT);
-
-	// *****************GL things
-		if (!InitGL()) {
-			fprintf( stderr, "Init GL failed. End.\n");
-			exit(0);
-		}
-#ifndef APPLE
-	LARGE_INTEGER _FREQ;
-	QueryPerformanceFrequency(&_FREQ);
-	tickFreq = (double)_FREQ.QuadPart;
+	InitClasses();
 	
-	MersenneRandomInit((int)ReadTSC());
-#endif
-	//	MersenneRandomInit((int)ReadTSC());
-
+	/************* GL things ***************/
+	if (!InitGL()) {
+		fprintf( stderr, "Init GL failed. End.\n");
+		exit(0);
+	}
 	// load textures
-		s_Texture->LoadAllTextures();
+	s_Texture->LoadAllTextures();
 
-	// ****************game preinit
-		s_World->LoadWorld();
+	//************* Game preinit ***************/
 
-		m_Player->eyepos = float3(20, 20, 20);
-		m_Player->theta = PI/2;
-		m_Player->phi = PI/4;
-	//	m_Player->dir = float3(0, 10, 0);
+	s_World->LoadWorld();
 
-	// ***************event loop
-	fprintf(stderr, "asdf\n");
-		glutKeyboardFunc(Key);
-		glutDisplayFunc(DrawGLScene);
-		glutIdleFunc(glutPostRedisplay);
-		glutPassiveMotionFunc(Motion);
-		glutMainLoop();
+	m_Player->eyepos = float3(20, 20, 20);
+	m_Player->theta = PI/2;
+	m_Player->phi = PI/4;
+
+	glutKeyboardFunc(Key);
+	glutDisplayFunc(DrawGLScene);
+	glutIdleFunc(glutPostRedisplay);
+	glutPassiveMotionFunc(Motion);
+	glutMainLoop();
 
 
 	DeInitClasses();

@@ -1,5 +1,4 @@
-
-#include <math.h>
+#ifndef APPLE
 
 #include "glext.h"
 
@@ -11,7 +10,12 @@ PFNGLDELETEBUFFERSARBPROC glDeleteBuffersARB;               // VBO Deletion Proc
 PFNGLGETBUFFERPARAMETERIVARBPROC glGetBufferParameterivARB; // return various parameters of VBO
 PFNGLMAPBUFFERARBPROC glMapBufferARB;                       // map VBO procedure
 PFNGLUNMAPBUFFERARBPROC glUnmapBufferARB;                   // unmap VBO procedure
+#else
+#include <OpenGL/glext.h>
+#endif
 
+#include <math.h>
+#include "common.h"
 
 #define WIDTH	1200
 #define HEIGHT	800
@@ -23,6 +27,7 @@ float zNear = 1.0f;
 int _width	= WIDTH;
 int _height = HEIGHT;
 
+#ifndef APPLE
 HDC			hDC = 0;
 HWND		hWnd = 0;
 HINSTANCE	hInst = 0;
@@ -33,19 +38,27 @@ BOOL		active = TRUE;
 BOOL		keys[256];
 
 LARGE_INTEGER lastTick, currTick;
+#endif
 double tickFreq;
 int captureMouse = 1;
 
 GLuint				box;
 GLuint				base;
 GLuint				texture[1];							// Crate.bmp texture
+
+#ifndef APPLE
 GLYPHMETRICSFLOAT	gmf[256];
+int DrawGLScene();
+#else
+void DrawGLScene();
+#endif
 
 bool supportVBO;
 
-int DrawGLScene();
 GLvoid ReSizeGLScene(GLsizei, GLsizei);
 BOOL InitGL();
+
+#ifndef APPLE
 BOOL CALLBACK wp(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 
@@ -130,24 +143,6 @@ GLvoid glPrint(const char *fmt, ...)					// Custom GL "Print" Routine
 	glPopAttrib();										// Pops The Display List Bits
 }
 
-GLvoid ReSizeGLScene(GLsizei width, GLsizei height)		// Resize And Initialize The GL Window
-{
-	if (height==0)										// Prevent A Divide By Zero By
-		height=1;										// Making Height Equal One
-
-	glViewport(0,0,width,height);						// Reset The Current Viewport
-
-	glMatrixMode(GL_PROJECTION);						// Select The Projection Matrix
-	glLoadIdentity();
-
-	//glOrtho(0, width, 0, height, -1, 1);
-	//gluPerspective(45.0f, (GLfloat)width/(GLfloat)height, 10.0f, 1000.0f);
-	gluPerspective(fovY, (GLfloat)width/(GLfloat)height, zNear, 1000.0f);
-
-	glMatrixMode(GL_MODELVIEW);							// Select The Modelview Matrix
-	glLoadIdentity();									// Reset The Modelview Matrix
-}
-
 bool CheckVBOSupport() {
 	glGenBuffersARB = 0;                     // VBO Name Generation Procedure
 	glBindBufferARB = 0;                     // VBO Bind Procedure
@@ -176,6 +171,26 @@ bool CheckVBOSupport() {
 		return false;
     }
 }
+#endif
+
+GLvoid ReSizeGLScene(GLsizei width, GLsizei height)		// Resize And Initialize The GL Window
+{
+	if (height==0)										// Prevent A Divide By Zero By
+		height=1;										// Making Height Equal One
+
+	glViewport(0,0,width,height);						// Reset The Current Viewport
+
+	glMatrixMode(GL_PROJECTION);						// Select The Projection Matrix
+	glLoadIdentity();
+
+	//glOrtho(0, width, 0, height, -1, 1);
+	//gluPerspective(45.0f, (GLfloat)width/(GLfloat)height, 10.0f, 1000.0f);
+	gluPerspective(fovY, (GLfloat)width/(GLfloat)height, zNear, 1000.0f);
+
+	glMatrixMode(GL_MODELVIEW);							// Select The Modelview Matrix
+	glLoadIdentity();									// Reset The Modelview Matrix
+}
+
 
 BOOL InitGL()
 {
@@ -205,14 +220,15 @@ BOOL InitGL()
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_BACK);
-	
+#ifndef APPLE
 	BuildFont();
 
 	setVSync(1);
+#endif
 
 	return TRUE;
 }
-
+#ifndef APPLE
 BOOL CreateGLWindow()
 {
 	GLuint	PixelFormat;
@@ -319,3 +335,4 @@ BOOL CreateGLWindow()
 
 	return TRUE;
 }
+#endif
