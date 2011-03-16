@@ -66,6 +66,7 @@
   <ItemGroup>
     <ClInclude Include="asmlib.h" />
     <ClInclude Include="asmlibran.h" />
+    <ClInclude Include="util.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

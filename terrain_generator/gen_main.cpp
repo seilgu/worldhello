@@ -1,14 +1,23 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
-#include "asmlibran.h"
-#include <time.h>
 
+#ifndef APPLE
+#include "asmlibran.h"
+#else
+#include <time.h>
+int MersenneIRandom(int start, int end)
+{
+	int len = end-start;
+	return rand()%len + end;
+}
+#endif
 struct int3 {
 	int3(int xx, int yy, int zz) : x(xx), y(yy), z(zz) {}
 	int3() : x(0), y(0), z(0) {}
 	int x, y, z;
 };
+
 
 // to[4]
 void tobase36(int from, char to[]) {
@@ -87,6 +96,7 @@ int generate_terrain(short int *terrain, int3 offset, int3 dim) {
 				pos.x = offset.x + i;
 				pos.y = offset.y + j;
 				pos.z = offset.z + k;
+<<<<<<< HEAD
 
 
 #ifndef APPLE
@@ -95,6 +105,9 @@ int generate_terrain(short int *terrain, int3 offset, int3 dim) {
 				int test = rand()%10;
 #endif	
 
+=======
+				int test = MersenneIRandom(0, 10);
+>>>>>>> 75d6a8c2622c13034092512be43f610405a6730c
 				terrain[k*dim.x*dim.y + j*dim.x + i] = 0;
 				if (pos.z < height) {
 					terrain[k*dim.x*dim.y + j*dim.x + i] = 3;

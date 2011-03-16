@@ -64,6 +64,7 @@
     <ClCompile Include="Block.cpp" />
     <ClCompile Include="common.cpp" />
     <ClCompile Include="Event.cpp" />
+    <ClCompile Include="File.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Map.cpp" />
     <ClCompile Include="Player.cpp" />
@@ -72,10 +73,12 @@
     <ClCompile Include="World.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="bimap.h" />
     <ClInclude Include="Block.h" />
     <ClInclude Include="common.h" />
     <ClInclude Include="Debug.h" />
     <ClInclude Include="Event.h" />
+    <ClInclude Include="File.h" />
     <ClInclude Include="glext.h" />
     <ClInclude Include="init.h" />
     <ClInclude Include="Map.h" />

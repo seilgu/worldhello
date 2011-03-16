@@ -1,16 +1,18 @@
-﻿Build started 2011/3/11 下午 03:49:33.
-     1>Project "D:\MyCraft\MyCraft\MyCraft.vcxproj" on node 2 (build target(s)).
+﻿Build started 2011/3/16 下午 02:52:38.
+     1>Project "D:\GitRepository\MyCraft\MyCraft.vcxproj" on node 2 (build target(s)).
      1>InitializeBuildStatus:
          Creating "Release\MyCraft.unsuccessfulbuild" because "AlwaysCreate" was specified.
        ClCompile:
-         D:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\CL.exe /c /Zi /nologo /W3 /WX- /O2 /Oi /Oy- /GL /D _MBCS /Gm- /EHsc /MD /GS /Gy /fp:precise /Zc:wchar_t /Zc:forScope /Fo"Release\\" /Fd"Release\vc100.pdb" /Gd /TP /analyze- /errorReport:prompt Map.cpp
-         Map.cpp
-     1>Map.cpp(134): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
-                 D:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\stdio.h(371) : see declaration of 'sprintf'
+         D:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\CL.exe /c /Zi /nologo /W3 /WX- /O2 /Oi /Oy- /GL /D _MBCS /Gm- /EHsc /MD /GS /Gy /fp:precise /Zc:wchar_t /Zc:forScope /Fo"Release\\" /Fd"Release\vc100.pdb" /Gd /TP /analyze- /errorReport:prompt Render.cpp
+         Render.cpp
+     1>Render.cpp(536): warning C4244: 'argument' : conversion from 'int' to 'float', possible loss of data
+     1>Render.cpp(536): warning C4244: 'argument' : conversion from 'int' to 'float', possible loss of data
+     1>Render.cpp(536): warning C4244: 'argument' : conversion from 'int' to 'float', possible loss of data
        Link:
-         D:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"D:\MyCraft\Release\MyCraft.exe" /NOLOGO SOIL.lib alibcof32.lib opengl32.lib glu32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /ManifestFile:"Release\MyCraft.exe.intermediate.manifest" /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /DEBUG /PDB:"D:\MyCraft\Release\MyCraft.pdb" /OPT:REF /OPT:ICF /LTCG /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"D:\MyCraft\Release\MyCraft.lib" /MACHINE:X86 Release\Block.obj
+         D:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"D:\GitRepository\Release\MyCraft.exe" /NOLOGO SOIL.lib alibcof32.lib opengl32.lib glu32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /ManifestFile:"Release\MyCraft.exe.intermediate.manifest" /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /DEBUG /PDB:"D:\GitRepository\Release\MyCraft.pdb" /OPT:REF /OPT:ICF /LTCG /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"D:\GitRepository\Release\MyCraft.lib" /MACHINE:X86 Release\Block.obj
          Release\common.obj
          Release\Event.obj
+         Release\File.obj
          Release\main.obj
          Release\Map.obj
          Release\Player.obj
@@ -19,14 +21,14 @@
          Release\World.obj
          Generating code
          Finished generating code
-         MyCraft.vcxproj -> D:\MyCraft\Release\MyCraft.exe
+         MyCraft.vcxproj -> D:\GitRepository\Release\MyCraft.exe
        Manifest:
-         C:\Program Files (x86)\Microsoft SDKs\Windows\v7.0A\bin\mt.exe /nologo /verbose /outputresource:"D:\MyCraft\Release\MyCraft.exe;#1" /manifest Release\MyCraft.exe.intermediate.manifest
+         C:\Program Files (x86)\Microsoft SDKs\Windows\v7.0A\bin\mt.exe /nologo /verbose /outputresource:"D:\GitRepository\Release\MyCraft.exe;#1" /manifest Release\MyCraft.exe.intermediate.manifest
        FinalizeBuildStatus:
          Deleting file "Release\MyCraft.unsuccessfulbuild".
          Touching "Release\MyCraft.lastbuildstate".
-     1>Done Building Project "D:\MyCraft\MyCraft\MyCraft.vcxproj" (build target(s)).
+     1>Done Building Project "D:\GitRepository\MyCraft\MyCraft.vcxproj" (build target(s)).
 
 Build succeeded.
 
-Time Elapsed 00:00:01.91
+Time Elapsed 00:00:03.94

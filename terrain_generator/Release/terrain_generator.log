@@ -1,22 +1,22 @@
-﻿Build started 2011/3/11 上午 05:41:25.
-     1>Project "D:\MyCraft\terrain_generator\terrain_generator.vcxproj" on node 2 (build target(s)).
+﻿Build started 2011/3/16 上午 12:59:01.
+     1>Project "D:\GitRepository\terrain_generator\terrain_generator.vcxproj" on node 2 (build target(s)).
      1>InitializeBuildStatus:
          Creating "Release\terrain_generator.unsuccessfulbuild" because "AlwaysCreate" was specified.
        ClCompile:
          D:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\CL.exe /c /Zi /nologo /W3 /WX- /O2 /Oi /Oy- /GL /D _MBCS /Gm- /EHsc /MD /GS /Gy /fp:precise /Zc:wchar_t /Zc:forScope /Fo"Release\\" /Fd"Release\vc100.pdb" /Gd /TP /analyze- /errorReport:prompt gen_main.cpp
          gen_main.cpp
        Link:
-         D:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"D:\MyCraft\Release\terrain_generator.exe" /NOLOGO alibcof32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /ManifestFile:"Release\terrain_generator.exe.intermediate.manifest" /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /DEBUG /PDB:"D:\MyCraft\Release\terrain_generator.pdb" /OPT:REF /OPT:ICF /LTCG /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"D:\MyCraft\Release\terrain_generator.lib" /MACHINE:X86 Release\gen_main.obj
+         D:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"D:\GitRepository\Release\terrain_generator.exe" /NOLOGO alibcof32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /ManifestFile:"Release\terrain_generator.exe.intermediate.manifest" /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /DEBUG /PDB:"D:\GitRepository\Release\terrain_generator.pdb" /OPT:REF /OPT:ICF /LTCG /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"D:\GitRepository\Release\terrain_generator.lib" /MACHINE:X86 Release\gen_main.obj
          Generating code
          Finished generating code
-         terrain_generator.vcxproj -> D:\MyCraft\Release\terrain_generator.exe
+         terrain_generator.vcxproj -> D:\GitRepository\Release\terrain_generator.exe
        Manifest:
-         C:\Program Files (x86)\Microsoft SDKs\Windows\v7.0A\bin\mt.exe /nologo /verbose /outputresource:"D:\MyCraft\Release\terrain_generator.exe;#1" /manifest Release\terrain_generator.exe.intermediate.manifest
+         C:\Program Files (x86)\Microsoft SDKs\Windows\v7.0A\bin\mt.exe /nologo /verbose /outputresource:"D:\GitRepository\Release\terrain_generator.exe;#1" /manifest Release\terrain_generator.exe.intermediate.manifest
        FinalizeBuildStatus:
          Deleting file "Release\terrain_generator.unsuccessfulbuild".
          Touching "Release\terrain_generator.lastbuildstate".
-     1>Done Building Project "D:\MyCraft\terrain_generator\terrain_generator.vcxproj" (build target(s)).
+     1>Done Building Project "D:\GitRepository\terrain_generator\terrain_generator.vcxproj" (build target(s)).
 
 Build succeeded.
 
-Time Elapsed 00:00:00.70
+Time Elapsed 00:00:00.33
