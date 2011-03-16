@@ -20,7 +20,6 @@
 #include "common.h"
 #include "Map.h"
 #include "texture.h"
-#include "bimap.h"
 #include <map>
 
 #ifndef APPLE
@@ -55,13 +54,12 @@ extern class TextureMgr *s_Texture;
 ************************************************************/
 
 
-using codeproject::bimap;
-typedef bimap<int3, int, id_compare, std::less<int>> block_list;
 struct render_chunk {
 	int3 id;
 	GLuint vbo;
-	block_list blockList;
 	int num_faces;
+	int vbo_size;
+	GLfloat *vertices;
 	unsigned short loaded:1;
 	unsigned short failed:1;
 	unsigned short unneeded:1;
@@ -103,25 +101,26 @@ public :
 		m_Thread = 0;
 	}
 
+	void UpdateVBO(render_chunk *ren_chk, map_chunk *map_chk);
+
 	render_chunk *CreateEmptyChunk();
 	void DeleteChunk(render_chunk *chk);
 	void LoadChunk(render_chunk *ren_chk, map_chunk *map_chk, int urgent);
 
-	void CalculateVisible2(int3 id);
+	void CalculateVisible(int3 id, World* world);
 	void CheckChunkSide(int3 id, int dir);
+
 	void LoadNeededChunks(float3 pos, float3 dir, World *world);
 	void DiscardUnneededChunks(float3 pos, float3 dir, World *world);
 	// Draw to screen
-	void DrawScene(float3 pos, float3 dir, float dist);
-	void DrawScene0(float3 pos, float3 dir, float dist);
+	void DrawScene(float3 pos, float3 dir, float dist, World* world);
+	void DrawScene0(float3 pos, float3 dir, float dist, World* world);
 	void RenderChunk(render_chunk *tmp, float3 pos, float3 dir);
 	void RenderChunk0(map_chunk *chk, float3 pos, float3 dir);
 	void DrawFaceSimple(int i, int j, int k, int type, int dir);
 	void PrintChunkStatistics(char *buffer);
-	void GetTextureCoordinates(short int type, int dir, float2 &dst);
+	static void GetTextureCoordinates(short int type, int dir, float2 &dst);
 	void GenerateVBOArray(GLfloat *vertices, Block *blocks);
-	void GenerateVBOArray2(GLfloat *vertices, block_list *list, map_chunk *mapchk);
-	void UpdateVBO(render_chunk *renchk, map_chunk *mapchk);
 
 	typedef std::pair<render_chunk *, map_chunk *> render_pair;
 	class RenderChunkThread {
@@ -175,7 +174,6 @@ public :
 		}
 
 		void threadLoadChunk(render_pair pair, RenderChunkThread *self);
-		void threadLoadChunk2(render_pair pair, RenderChunkThread *self);
 		static void threadLoop(void *param);
 	};
 	RenderChunkThread *m_Thread;

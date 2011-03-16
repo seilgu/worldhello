@@ -4,6 +4,7 @@
 #include <math.h>
 #include "Map.h"
 #include "File.h"
+#include "Render.h"
 
 void Map::DeleteChunk(map_chunk *chk) {
 	if (chk == 0)
@@ -63,7 +64,7 @@ void Map::MarkUnneededChunks(float3 pos, float3 dir) {
 	for (it = m_chunks.begin(); it != m_chunks.end(); ++it) {
 		int3 idchk = (*it).first;
 		map_chunk *tmp = (*it).second;
-		if (abs(idchk.x - id.x) > 10 || abs(idchk.y - id.y) > 10 || abs(idchk.z - id.z) > 1) {
+		if (abs(idchk.x - id.x) > 4 || abs(idchk.y - id.y) > 4 || abs(idchk.z - id.z) > 1) {
 			if (tmp->loaded == 1 || tmp->failed == 1)
 				tmp->unneeded = 1;
 		}
@@ -105,8 +106,8 @@ void Map::LoadNeededChunks(float3 pos, float3 dir) {
 	int3 tmp;
 	
 	// these are the needed 5x5 chunks around the player
-	for (int i=-10; i<=10; i++) {
-		for (int j=-10; j<=10; j++) {
+	for (int i=-4; i<=4; i++) {
+		for (int j=-4; j<=4; j++) {
 			for (int k=-1; k<=1; k++) {
 				// setup chunk ids
 				tmp.x = id.x + i;
@@ -143,6 +144,7 @@ map_chunk *Map::CreateEmptyChunk() {
 	chk->unneeded = 0;
 	chk->loaded = 0;
 	chk->blocks = 0;
+	chk->modified = 0;
 
 	return chk;
 }
@@ -173,6 +175,7 @@ void Map::LoadChunk(int3 id, int urgent) {
 chunk_list *Map::GetChunkList() {
 	return &m_chunks;
 }
+
 
 /*********************** MapChunkThread class ***************************
 	Loads shit
@@ -234,9 +237,16 @@ void Map::MapChunkThread::threadLoadChunk(map_chunk *chk) {
 				unsigned short int t = type[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i];
 				blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].type = t;
 				blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque = (t == Block::NUL ? 0 : 1);
+				blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden = blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque;
+
+				if (blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].type != Block::NUL) {
+					blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].modified = 1;
+				}
 			}
 		}
 	}
 
+	chk->modified = 1;
+	
 	chk->loaded = 1;
 }

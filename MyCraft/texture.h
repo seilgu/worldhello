@@ -38,13 +38,25 @@ public:
 	static const int CRATE = TX(9, 14);
 	static const int SOIL = TX(2, 15);
 
+	GLfloat *textureArray[256];
 	GLuint block_texture;
 
 public :
-	TextureMgr();
-	~TextureMgr() {}
+	TextureMgr() {
+		for (int i=0; i<256; i++) {
+			textureArray[i] = 0;
+		}
+	}
+	~TextureMgr() {
+		for (int i=0; i<256; i++) {
+			if (textureArray[i] != 0) {
+				delete[] textureArray[i];
+			}
+		}
+	}
 
 	int LoadAllTextures();
+	void BuildTextureArrays();
 };
 
 #endif

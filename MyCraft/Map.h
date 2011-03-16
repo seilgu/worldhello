@@ -125,6 +125,8 @@ public :
 	chunk_list *GetChunkList();
 	void PrintChunkStatistics(char *buffer);
 	map_chunk *CreateEmptyChunk();
+	void CalculateVisible(int3 id);
+	void CheckChunkSide(int3 id, int dir);
 };
 
 

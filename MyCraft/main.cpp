@@ -138,15 +138,16 @@ void DrawGLScene()
 		m_Player->eyepos = m_Player->eyepos - crpd/2.0;
 	}
 
-	s_Render->LoadNeededChunks(m_Player->eyepos, m_Player->dir, s_World);
+
 	s_Render->DiscardUnneededChunks(m_Player->eyepos, m_Player->dir, s_World);
 #ifndef APPLE
-	QueryPerformanceCounter(&lastTick);
-#endif
-	s_Render->DrawScene(m_Player->eyepos, m_Player->dir, 400);
+	//QueryPerformanceCounter(&lastTick);
+#endif	
+	s_Render->LoadNeededChunks(m_Player->eyepos, m_Player->dir, s_World);
 #ifndef APPLE
-	QueryPerformanceCounter(&currTick);
+	//QueryPerformanceCounter(&currTick);
 #endif
+	s_Render->DrawScene(m_Player->eyepos, m_Player->dir, 400, s_World);
 	
 	if (keys['K'] == TRUE) {
 		keys['K'] = FALSE;
@@ -157,9 +158,48 @@ void DrawGLScene()
 
 			(it->second)->blocks[tmp.z*(CHUNK_W*CHUNK_L) + tmp.y*(CHUNK_W) + tmp.x].type = Block::CRATE;
 			(it->second)->blocks[tmp.z*(CHUNK_W*CHUNK_L) + tmp.y*(CHUNK_W) + tmp.x].modified = 1;
+			(it->second)->blocks[tmp.z*(CHUNK_W*CHUNK_L) + tmp.y*(CHUNK_W) + tmp.x].opaque = 1;
 			(it->second)->modified = 1;
 		}
 	}
+	if (keys['I'] == TRUE) {
+		keys['I'] = FALSE;
+
+		chunk_list::iterator it = s_World->world_map.m_chunks.find(int3(0, 0, 0));
+		if (it != s_World->world_map.m_chunks.end()) {
+			for (int i=0; i<CHUNK_W*CHUNK_L*CHUNK_H; i++) {
+				if ( (it->second)->blocks[i].type == Block::CRATE ) {
+					(it->second)->blocks[i].type = Block::NUL;
+					(it->second)->blocks[i].opaque = 0;
+					(it->second)->blocks[i].modified = 1;
+					(it->second)->modified = 1;
+					break;
+				}
+			}
+		}
+	}
+
+	/*chunk_list *chunks = s_World->GetRenderChunks(m_Player->eyepos, m_Player->dir);
+	chunk_list::iterator it;
+	for (it = chunks->begin(); it != chunks->end(); ++it) {
+		map_chunk *map_chk = 0;
+		map_chk = it->second;
+		if (map_chk == 0 || map_chk->failed == 1 || map_chk->loaded == 0)
+			continue;
+		if (map_chk->id.z != 0)
+			continue;
+
+
+		Block *blocks = map_chk->blocks;
+		for (int i=0; i<CHUNK_W; i++) {
+			for (int j=0; j<CHUNK_L; j++) {
+				blocks[1*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].type = MersenneIRandom(1, 3);
+				blocks[1*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque = 0;
+				blocks[1*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].modified = 1;
+			}
+		}
+		map_chk->modified = 1;
+	}*/
 	
 
 	// Debugging purpose
@@ -189,6 +229,12 @@ void DrawGLScene()
 	glTranslatef(0, 1, 0);
 	glPrint("%s", buffer);
 	glPopMatrix();
+
+	/*sprintf(buffer, "size:%d", s_Render->r_chunks.find(int3(0, 0, 0))->second->blockList.size());
+	glPushMatrix();
+	glTranslatef(0, 2, 0);
+	glPrint("%s", buffer);
+	glPopMatrix();*/
 
 	//s_World->world_map.PrintChunkStatistics(buffer);
 	
@@ -266,6 +312,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 
 	// load textures
 	s_Texture->LoadAllTextures();
+	//s_Texture->BuildTextureArrays();
 
 	//************* Game preinit ***************/
 
