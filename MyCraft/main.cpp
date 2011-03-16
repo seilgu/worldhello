@@ -148,6 +148,18 @@ void DrawGLScene()
 	QueryPerformanceCounter(&currTick);
 #endif
 	
+	if (keys['K'] == TRUE) {
+		keys['K'] = FALSE;
+
+		chunk_list::iterator it = s_World->world_map.m_chunks.find(int3(0, 0, 0));
+		if (it != s_World->world_map.m_chunks.end()) {
+			int3 tmp = int3(MersenneIRandom(0, 15), MersenneIRandom(0, 15), MersenneIRandom(0, 15));
+
+			(it->second)->blocks[tmp.z*(CHUNK_W*CHUNK_L) + tmp.y*(CHUNK_W) + tmp.x].type = Block::CRATE;
+			(it->second)->blocks[tmp.z*(CHUNK_W*CHUNK_L) + tmp.y*(CHUNK_W) + tmp.x].modified = 1;
+			(it->second)->modified = 1;
+		}
+	}
 	
 
 	// Debugging purpose
