@@ -16,9 +16,7 @@
 
 #include "asmlibran.h"
 #include "init.h"
-#include "Render.h"
 #include "World.h"
-#include "texture.h"
 #include "Player.h"
 #include "File.h"
 #include "Debug.h"
@@ -139,11 +137,12 @@ void DrawGLScene()
 	if (keys['D'] == TRUE) {
 		m_Player->eyepos = m_Player->eyepos - crpd/2.0;
 	}
+
+	s_Render->LoadNeededChunks(m_Player->eyepos, m_Player->dir, s_World);
+	s_Render->DiscardUnneededChunks(m_Player->eyepos, m_Player->dir, s_World);
 #ifndef APPLE
 	QueryPerformanceCounter(&lastTick);
 #endif
-	s_Render->LoadNeededChunks(m_Player->eyepos, m_Player->dir, s_World);
-	s_Render->DiscardUnneededChunks(m_Player->eyepos, m_Player->dir, s_World);
 	s_Render->DrawScene(m_Player->eyepos, m_Player->dir, 400);
 #ifndef APPLE
 	QueryPerformanceCounter(&currTick);
@@ -245,6 +244,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 		return FALSE;
 	}
 
+	CompileDisplayLists();
 
 	LARGE_INTEGER _FREQ;
 	QueryPerformanceFrequency(&_FREQ);
@@ -288,6 +288,8 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 	}
 	
 	ShowCursor(true);
+
+	DeleteDisplayLists();
 
 	DeInitClasses();
 

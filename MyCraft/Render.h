@@ -53,6 +53,8 @@ extern class TextureMgr *s_Texture;
 	now that you use std::vector to store T2F_V3F
 
 ************************************************************/
+
+
 using codeproject::bimap;
 typedef bimap<int3, int, id_compare, std::less<int>> block_list;
 struct render_chunk {
@@ -117,6 +119,9 @@ public :
 	void DrawFaceSimple(int i, int j, int k, int type, int dir);
 	void PrintChunkStatistics(char *buffer);
 	void GetTextureCoordinates(short int type, int dir, float2 &dst);
+	void GenerateVBOArray(GLfloat *vertices, Block *blocks);
+	void GenerateVBOArray2(GLfloat *vertices, block_list *list, map_chunk *mapchk);
+	void UpdateVBO(render_chunk *renchk, map_chunk *mapchk);
 
 	typedef std::pair<render_chunk *, map_chunk *> render_pair;
 	class RenderChunkThread {

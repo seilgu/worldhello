@@ -4,23 +4,22 @@
 extern float zNear;
 extern int _width, _height;
 
-inline float2 get_texture_coord(int tx) {
-	float2 coord;
-	coord.y = (tx/TX_ROW)/16.0f;
-	coord.x = (tx%TX_ROW)/16.0f;
-
-	return coord;
-}
-
-void UpdateVBO(render_chunk *renchk, map_chunk *mapchk) {
+void Render::UpdateVBO(render_chunk *renchk, map_chunk *mapchk) {
 	if (renchk == 0 || mapchk == 0)
 		return;
 	if (renchk->id != mapchk->id)
 		return;
 
+	if (renchk->failed == 1 || mapchk->failed == 1 || mapchk->loaded == 0)
+		return;
+
 	Block *blocks = mapchk->blocks;
 
-	block_list *blockList = &renchk->blockList;
+	std::set<int, std::less<int>> changed_blocks;
+
+	block_list *blockList = &(renchk->blockList);
+
+	unsigned int original_size = blockList->size();
 	// check if map modified, if so, update visible blocks
 	for (int i=0; i<CHUNK_W; i++) {
 		for (int j=0; j<CHUNK_L; j++) {
@@ -29,38 +28,237 @@ void UpdateVBO(render_chunk *renchk, map_chunk *mapchk) {
 					continue;
 
 				int3 index = int3(i, j, k);
-				if (blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden == 1) { // removed
-					block_list::iterator it_rm = blockList->find(index);
+				if (blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden == 1) {						// removed
+					block_list::iterator it_rm = blockList->find(index);								// get the block in list
 					if (it_rm != blockList->end()) { // should always happen
 						int num_rm = it_rm->second;
-						if (num_rm == blockList->size() - 1) { // deleting the last one, easy
+						if (num_rm == blockList->size() - 1) { // deleting the one with last index, easy, just remove it
+							if (changed_blocks.find(blockList->size() - 1) == changed_blocks.end()) { // if we didn't have in changed_blocks
+								changed_blocks.insert(blockList->size() - 1);
+							}
 							blockList->erase(it_rm);
 						}
-						else { // since there is no assignment, delete two and insert one
-							block_list::to::iterator it_cp = blockList->to.find(blockList->size() - 1);
+						else { // deleting middle ones, since there is no assignment, delete two and insert one
+
+							if (changed_blocks.find(blockList->size() - 1) == changed_blocks.end()) {
+								changed_blocks.insert(blockList->size() - 1);
+							}
+							if (changed_blocks.find(num_rm) == changed_blocks.end()) {
+								changed_blocks.insert(num_rm);
+							}
+
+							block_list::to::iterator it_cp = blockList->to.find(blockList->size() - 1); // find the last index
 							int3 id_cp = it_cp->second;
 
-							blockList->to.erase(it_cp);
+							blockList->to.erase(it_cp); // earse both
 							blockList->erase(it_rm);
 
-							blockList->insert( std::pair<int3, int>(id_cp, num_rm) );
+							blockList->insert( std::pair<int3, int>(id_cp, num_rm) ); // last one's id, deleted one's offset
 						}
 					}
 				}
 				else { // added
-					//blockList->insert(
+					int tmpsize = blockList->size();
+					blockList->insert( std::pair<int3, int>(index, tmpsize) );
+					if (changed_blocks.find(tmpsize) == changed_blocks.end()) {
+						changed_blocks.insert(tmpsize);
+					}
 				}
-
-				// we still need to use glBufferData, which requires an arra
-				// do this after
-				//blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].modified = 0;
 			}
 		}
 	}
 
-	//mapchk->blocks[
-	block_list::iterator it;
+	// now the fucking update is done, time to update shit
 
+	if (blockList->size() > original_size) { // need whole reallocation
+		GLfloat *vertices = 0;
+		vertices = new GLfloat[blockList->size()*6*20];
+		if (vertices == 0) {
+			MessageBox(0, "alloc again failed", "haha", 0);
+			return;
+		}
+
+		GenerateVBOArray2(vertices, blockList, mapchk);
+
+		glBindBufferARB(GL_ARRAY_BUFFER_ARB, renchk->vbo);
+		glBufferDataARB(GL_ARRAY_BUFFER_ARB, blockList->size()*6*20*sizeof(GLfloat), vertices, GL_STATIC_DRAW_ARB);
+		glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
+
+		delete[] vertices;
+	}
+	else { // just update
+		std::set<int, std::less<int>>::iterator it;
+
+		for (it = changed_blocks.begin(); it != changed_blocks.end(); ++it) {
+			int offset = (*it);
+			block_list::to::iterator blk_it = blockList->to.find(offset);
+			
+			GLfloat vertices[6*20];
+			if (blk_it == blockList->to.end()) { // it has been deleted
+				memset(vertices, 0, 6*20*sizeof(GLfloat));
+			}
+			else {
+				int3 id = blk_it->second;
+
+				for (int w=0; w<6; w++) { // 6 faces
+					float2 coord;
+					GetTextureCoordinates(mapchk->blocks[id.z*(CHUNK_W*CHUNK_L) + id.y*(CHUNK_W) + id.x].type, w, coord);
+					coord.x += 0.001f;
+					coord.y += 0.001f;
+					float csize = 1/16.0f;
+					csize -= 0.002f;
+
+					// texture coordinates are in the same order in each face except NX
+					if (w == NX) {
+						vertices[w*20 + 0] = coord.x;
+						vertices[w*20 + 1] = coord.y;
+						vertices[w*20 + 5] = coord.x;
+						vertices[w*20 + 6] = coord.y+csize;
+						vertices[w*20 + 10] = coord.x+csize;
+						vertices[w*20 + 11] = coord.y+csize;
+						vertices[w*20 + 15] = coord.x+csize;
+						vertices[w*20 + 16] = coord.y;
+					}
+					else {
+						vertices[w*20 + 0] = coord.x;
+						vertices[w*20 + 1] = coord.y;
+						vertices[w*20 + 5] = coord.x+csize;
+						vertices[w*20 + 6] = coord.y;
+						vertices[w*20 + 10] = coord.x+csize;
+						vertices[w*20 + 11] = coord.y+csize;
+						vertices[w*20 + 15] = coord.x;
+						vertices[w*20 + 16] = coord.y+csize;
+					}
+					// now setup vertex coordinates of each face
+					switch (w) {
+					case PZ:
+						vertices[w*20 + 2] = 0.0f;
+						vertices[w*20 + 3] = 0.0f;
+						vertices[w*20 + 4] = 1.0f;
+
+						vertices[w*20 + 7] = 1.0f;
+						vertices[w*20 + 8] = 0.0f;
+						vertices[w*20 + 9] = 1.0f;
+
+						vertices[w*20 + 12] = 1.0f;
+						vertices[w*20 + 13] = 1.0f;
+						vertices[w*20 + 14] = 1.0f;
+
+						vertices[w*20 + 17] = 0.0f;
+						vertices[w*20 + 18] = 1.0f;
+						vertices[w*20 + 19] = 1.0f;
+						break;
+					case NZ:
+						vertices[w*20 + 2] = 1.0f;
+						vertices[w*20 + 3] = 0.0f;
+						vertices[w*20 + 4] = 0.0f;
+
+						vertices[w*20 + 7] = 0.0f;
+						vertices[w*20 + 8] = 0.0f;
+						vertices[w*20 + 9] = 0.0f;
+
+						vertices[w*20 + 12] = 0.0f;
+						vertices[w*20 + 13] = 1.0f;
+						vertices[w*20 + 14] = 0.0f;
+
+						vertices[w*20 + 17] = 1.0f;
+						vertices[w*20 + 18] = 1.0f;
+						vertices[w*20 + 19] = 0.0f;
+						break;
+					case PY:
+						vertices[w*20 + 2] = 1.0f;
+						vertices[w*20 + 3] = 1.0f;
+						vertices[w*20 + 4] = 0.0f;
+
+						vertices[w*20 + 7] = 0.0f;
+						vertices[w*20 + 8] = 1.0f;
+						vertices[w*20 + 9] = 0.0f;
+
+						vertices[w*20 + 12] = 0.0f;
+						vertices[w*20 + 13] = 1.0f;
+						vertices[w*20 + 14] = 1.0f;
+
+						vertices[w*20 + 17] = 1.0f;
+						vertices[w*20 + 18] = 1.0f;
+						vertices[w*20 + 19] = 1.0f;
+						break;
+					case NY:
+						vertices[w*20 + 2] = 0.0f;
+						vertices[w*20 + 3] = 0.0f;
+						vertices[w*20 + 4] = 0.0f;
+
+						vertices[w*20 + 7] = 1.0f;
+						vertices[w*20 + 8] = 0.0f;
+						vertices[w*20 + 9] = 0.0f;
+
+						vertices[w*20 + 12] = 1.0f;
+						vertices[w*20 + 13] = 0.0f;
+						vertices[w*20 + 14] = 1.0f;
+
+						vertices[w*20 + 17] = 0.0f;
+						vertices[w*20 + 18] = 0.0f;
+						vertices[w*20 + 19] = 1.0f;
+						break;
+					case PX:
+						vertices[w*20 + 2] = 1.0f;
+						vertices[w*20 + 3] = 0.0f;
+						vertices[w*20 + 4] = 0.0f;
+
+						vertices[w*20 + 7] = 1.0f;
+						vertices[w*20 + 8] = 1.0f;
+						vertices[w*20 + 9] = 0.0f;
+
+						vertices[w*20 + 12] = 1.0f;
+						vertices[w*20 + 13] = 1.0f;
+						vertices[w*20 + 14] = 1.0f;
+
+						vertices[w*20 + 17] = 1.0f;
+						vertices[w*20 + 18] = 0.0f;
+						vertices[w*20 + 19] = 1.0f;
+						break;
+					case NX:
+						vertices[w*20 + 2] = 0.0f;
+						vertices[w*20 + 3] = 0.0f;
+						vertices[w*20 + 4] = 0.0f;
+
+						vertices[w*20 + 7] = 0.0f;
+						vertices[w*20 + 8] = 0.0f;
+						vertices[w*20 + 9] = 1.0f;
+
+						vertices[w*20 + 12] = 0.0f;
+						vertices[w*20 + 13] = 1.0f;
+						vertices[w*20 + 14] = 1.0f;
+
+						vertices[w*20 + 17] = 0.0f;
+						vertices[w*20 + 18] = 1.0f;
+						vertices[w*20 + 19] = 0.0f;
+						break;
+					}
+
+					// translate to relative position
+					for (int s=0; s<4; s++) {
+						vertices[w*20 + s*5 + 2] += (GLfloat)id.x;
+						vertices[w*20 + s*5 + 3] += (GLfloat)id.y;
+						vertices[w*20 + s*5 + 4] += (GLfloat)id.z;
+					}
+				}
+
+				
+				glBindBufferARB(GL_ARRAY_BUFFER_ARB, renchk->vbo);
+				glBufferSubDataARB(GL_ARRAY_BUFFER_ARB, offset*120, 120, vertices);
+				glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
+
+			}
+		}
+	}
+
+	renchk->num_faces = blockList->size()*6;
+
+	mapchk->modified = 0;
+
+	for (int i=0; i<CHUNK_W*CHUNK_L*CHUNK_H; i++) {
+		blocks[i].modified = 0;
+	}
 }
 
 void Render::DrawFaceSimple(int i, int j, int k, int type, int dir) {
@@ -360,7 +558,7 @@ void Render::LoadChunk(render_chunk *ren_chk, map_chunk *map_chk, int urgent) {
 		return;
 	}
 	else {
-		m_Thread->threadLoadChunk( std::pair<render_chunk *, map_chunk *>(ren_chk, map_chk), m_Thread);
+		m_Thread->threadLoadChunk2( std::pair<render_chunk *, map_chunk *>(ren_chk, map_chk), m_Thread);
 	}
 }
 
@@ -434,7 +632,8 @@ void Render::LoadNeededChunks(float3 pos, float3 dir, World *world) {
 
 		// if we have it in vbo list
 
-		if (r_chunks.find(id) == r_chunks.end()) { // not found, need to create it
+		render_list::iterator ren_it = r_chunks.find(id);
+		if (ren_it == r_chunks.end()) { // not found, need to create it
 			render_chunk *renderchk = CreateEmptyChunk();
 
 			if(renderchk == 0) {
@@ -447,6 +646,11 @@ void Render::LoadNeededChunks(float3 pos, float3 dir, World *world) {
 			r_chunks.insert( std::pair<int3, render_chunk *>(id, renderchk) );
 			LoadChunk(renderchk, (*map_it).second, 1); // NOT TRYING MULTITHREADING!!!!
 		}
+		else {
+			if (map_chk->modified == 1) {
+				UpdateVBO(ren_it->second, map_chk);
+			}
+		}
 	}
 }
 
@@ -456,7 +660,7 @@ void Render::RenderChunk(render_chunk *tmp, float3 pos, float3 dir) {
 
 	// frustum culling
 
-	/*int3 id = tmp->id;
+	int3 id = tmp->id;
 
 	// right plane normal
 	normalize(dir);
@@ -491,7 +695,7 @@ void Render::RenderChunk(render_chunk *tmp, float3 pos, float3 dir) {
 
 		if (dot_prod(normal, n) > 0)
 			return;
-	}*/
+	}
 	
 
 	
@@ -514,12 +718,12 @@ void Render::RenderChunk(render_chunk *tmp, float3 pos, float3 dir) {
 
 // No VBO version
 extern float fovY;
+extern GLuint blockDisplayList;
 void Render::RenderChunk0(map_chunk *chk, float3 pos, float3 dir) {
 	float3 rel;
 	
-	// do whole chunk's culling first
-	int all_inside = 0;
-	// frustum culling
+	// do whole chunk's culling
+
 	int3 cid = chk->id;
 
 	// right plane normal
@@ -533,7 +737,6 @@ void Render::RenderChunk0(map_chunk *chk, float3 pos, float3 dir) {
 
 	for (int w=0; w<4; w++) {
 		float3 n(cid.x+1.0f, cid.y+1.0f, cid.z+1.0f);
-		float3 p(cid.x, cid.y, cid.z);
 		switch (w) {
 		case 0:
 			normal = cross_prod(zNear*dir + rhs*zNear, upside);
@@ -548,21 +751,16 @@ void Render::RenderChunk0(map_chunk *chk, float3 pos, float3 dir) {
 			normal = cross_prod(zNear*dir - upside*zNear, rhs);
 			break;
 		}
-		if (normal.x > 0) { n.x--; p.x++; }
-		if (normal.y > 0) { n.y--; p.x++; }
-		if (normal.z > 0) { n.z--; p.x++; }
+		if (normal.x > 0) { n.x--; }
+		if (normal.y > 0) { n.y--; }
+		if (normal.z > 0) { n.z--; }
 
-		p.x *= CHUNK_W; p.y *= CHUNK_L; p.z *= CHUNK_H;
 		n.x *= CHUNK_W; n.y *= CHUNK_L; n.z *= CHUNK_H;
 
 		n = BLOCK_LEN*n - pos;
-		p = BLOCK_LEN*p - pos;
 
 		if (dot_prod(normal, n) > 0) // all outside
 			return;
-
-		if (dot_prod(normal, p) < 0) // all inside
-			all_inside = 1;
 	}
 
 	int type;
@@ -575,44 +773,15 @@ void Render::RenderChunk0(map_chunk *chk, float3 pos, float3 dir) {
 				if (chk->blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden == 1)
 					continue;
 
-				if (all_inside == 0) { // decide whether to skip
-					// frustum culling
-					int3 id = int3(i, j, k);
-
-					for (int w=0; w<4; w++) {
-						float3 n(id.x+1.0f, id.y+1.0f, id.z+1.0f);
-						switch (w) {
-						case 0:
-							normal = cross_prod(zNear*dir + rhs*zNear, upside);
-							break;
-						case 1:
-							normal = cross_prod(upside, zNear*dir - rhs*zNear);
-							break;
-						case 2:
-							normal = cross_prod(rhs, zNear*dir + upside*zNear);
-							break;
-						case 3:
-							normal = cross_prod(zNear*dir - upside*zNear, rhs);
-							break;
-						}
-						if (normal.x > 0) { n.x--; }
-						if (normal.y > 0) { n.y--; }
-						if (normal.z > 0) { n.z--; }
-
-						n = n + float3((float)CHUNK_W*chk->id.x, (float)CHUNK_L*chk->id.y, (float)CHUNK_H*chk->id.z);
-
-						n = BLOCK_LEN*n - pos;
-
-						if (dot_prod(normal, n) > 0)
-							continue;
-					}
-				}
-
 				rel.x = (chk->id.x*CHUNK_W + i)*BLOCK_LEN - pos.x;
 				rel.y = (chk->id.y*CHUNK_L + j)*BLOCK_LEN - pos.y;
 				rel.z = (chk->id.z*CHUNK_H + k)*BLOCK_LEN - pos.z;
 				
-				if (rel.x > 0)
+				glTranslatef(i*1.0f, j*1.0f, k*1.0f);
+				glCallList(blockDisplayList + type);
+				glTranslatef(-i*1.0f, -j*1.0f, -k*1.0f);
+
+				/*if (rel.x > 0)
 					DrawFaceSimple(i, j, k, type, NX);
 				else
 					DrawFaceSimple(i, j, k, type, PX);
@@ -625,7 +794,7 @@ void Render::RenderChunk0(map_chunk *chk, float3 pos, float3 dir) {
 				if (rel.z > 0)
 					DrawFaceSimple(i, j, k, type, NZ);
 				else
-					DrawFaceSimple(i, j, k, type, PZ);
+					DrawFaceSimple(i, j, k, type, PZ);*/
 			}
 		}
 	}
@@ -729,67 +898,191 @@ void Render::RenderChunkThread::threadLoop(void *param) {
 	}
 }
 
-
-void Render::RenderChunkThread::threadLoadChunk(render_pair pair, Render::RenderChunkThread *self) {
-	render_chunk *ren_chk = pair.first;
-	map_chunk *map_chk = pair.second;
-
-	if (ren_chk == 0)
-		return;
-
-	ren_chk->failed = 0;
-	ren_chk->loaded = 0;
-	ren_chk->unneeded = 0;
-
-	if (map_chk == 0 || ren_chk->id != map_chk->id) {
-		ren_chk->failed = 1;
-		return;
-	}
-
-	if (map_chk->loaded == 0 || map_chk->failed == 1 || map_chk->unneeded == 1) {
-		ren_chk->failed = 1;
-		return;
-	}
-
-	// calculate how many blocks we need to store in VBO and its required size
-	self->render->CalculateVisible2(map_chk->id);
-
-	int size = 0;
-	for (int i=0; i<CHUNK_W*CHUNK_L*CHUNK_H; i++) {
-		if (map_chk->blocks[i].type == Block::NUL)
-			continue;
-		if (map_chk->blocks[i].hidden == 0)
-			size++;
-	}
-
-	ren_chk->num_faces = size*6;
-
-	// size = #CUBES, required size = #CUBE*6*( (2+3)*4 )
-	GLfloat *vertices = 0;
-	vertices = new GLfloat[size*6*20];
-
+void Render::GenerateVBOArray2(GLfloat *vertices, block_list *list, map_chunk *mapchk) {
+	
 	if (vertices == 0) {
-		MessageBox(0, "VERTICES ALLOC FAILED", "haha", 0);
-		ren_chk->failed = 1;
+		MessageBox(0, "wrong usage", "ha", 0);
 		return;
 	}
 
+	int size = list->size();
+
+	block_list::iterator it;
+
+	for (it = list->begin(); it != list->end(); ++it) {
+		int3 id = it->first;
+		int count = it->second*6;
+
+		for (int w=0; w<6; w++) { // 6 faces
+			float2 coord;
+			GetTextureCoordinates(mapchk->blocks[id.z*(CHUNK_W*CHUNK_L) + id.y*(CHUNK_W) + id.x].type, w, coord);
+			coord.x += 0.001f;
+			coord.y += 0.001f;
+			float csize = 1/16.0f;
+			csize -= 0.002f;
+
+			// texture coordinates are in the same order in each face except NX
+			if (w == NX) {
+				vertices[count*20 + 0] = coord.x;
+				vertices[count*20 + 1] = coord.y;
+				vertices[count*20 + 5] = coord.x;
+				vertices[count*20 + 6] = coord.y+csize;
+				vertices[count*20 + 10] = coord.x+csize;
+				vertices[count*20 + 11] = coord.y+csize;
+				vertices[count*20 + 15] = coord.x+csize;
+				vertices[count*20 + 16] = coord.y;
+			}
+			else {
+				vertices[count*20 + 0] = coord.x;
+				vertices[count*20 + 1] = coord.y;
+				vertices[count*20 + 5] = coord.x+csize;
+				vertices[count*20 + 6] = coord.y;
+				vertices[count*20 + 10] = coord.x+csize;
+				vertices[count*20 + 11] = coord.y+csize;
+				vertices[count*20 + 15] = coord.x;
+				vertices[count*20 + 16] = coord.y+csize;
+			}
+			// now setup vertex coordinates of each face
+			switch (w) {
+			case PZ:
+				vertices[count*20 + 2] = 0.0f;
+				vertices[count*20 + 3] = 0.0f;
+				vertices[count*20 + 4] = 1.0f;
+
+				vertices[count*20 + 7] = 1.0f;
+				vertices[count*20 + 8] = 0.0f;
+				vertices[count*20 + 9] = 1.0f;
+
+				vertices[count*20 + 12] = 1.0f;
+				vertices[count*20 + 13] = 1.0f;
+				vertices[count*20 + 14] = 1.0f;
+
+				vertices[count*20 + 17] = 0.0f;
+				vertices[count*20 + 18] = 1.0f;
+				vertices[count*20 + 19] = 1.0f;
+				break;
+			case NZ:
+				vertices[count*20 + 2] = 1.0f;
+				vertices[count*20 + 3] = 0.0f;
+				vertices[count*20 + 4] = 0.0f;
+
+				vertices[count*20 + 7] = 0.0f;
+				vertices[count*20 + 8] = 0.0f;
+				vertices[count*20 + 9] = 0.0f;
+
+				vertices[count*20 + 12] = 0.0f;
+				vertices[count*20 + 13] = 1.0f;
+				vertices[count*20 + 14] = 0.0f;
+
+				vertices[count*20 + 17] = 1.0f;
+				vertices[count*20 + 18] = 1.0f;
+				vertices[count*20 + 19] = 0.0f;
+				break;
+			case PY:
+				vertices[count*20 + 2] = 1.0f;
+				vertices[count*20 + 3] = 1.0f;
+				vertices[count*20 + 4] = 0.0f;
+
+				vertices[count*20 + 7] = 0.0f;
+				vertices[count*20 + 8] = 1.0f;
+				vertices[count*20 + 9] = 0.0f;
+
+				vertices[count*20 + 12] = 0.0f;
+				vertices[count*20 + 13] = 1.0f;
+				vertices[count*20 + 14] = 1.0f;
+
+				vertices[count*20 + 17] = 1.0f;
+				vertices[count*20 + 18] = 1.0f;
+				vertices[count*20 + 19] = 1.0f;
+				break;
+			case NY:
+				vertices[count*20 + 2] = 0.0f;
+				vertices[count*20 + 3] = 0.0f;
+				vertices[count*20 + 4] = 0.0f;
+
+				vertices[count*20 + 7] = 1.0f;
+				vertices[count*20 + 8] = 0.0f;
+				vertices[count*20 + 9] = 0.0f;
+
+				vertices[count*20 + 12] = 1.0f;
+				vertices[count*20 + 13] = 0.0f;
+				vertices[count*20 + 14] = 1.0f;
+
+				vertices[count*20 + 17] = 0.0f;
+				vertices[count*20 + 18] = 0.0f;
+				vertices[count*20 + 19] = 1.0f;
+				break;
+			case PX:
+				vertices[count*20 + 2] = 1.0f;
+				vertices[count*20 + 3] = 0.0f;
+				vertices[count*20 + 4] = 0.0f;
+
+				vertices[count*20 + 7] = 1.0f;
+				vertices[count*20 + 8] = 1.0f;
+				vertices[count*20 + 9] = 0.0f;
+
+				vertices[count*20 + 12] = 1.0f;
+				vertices[count*20 + 13] = 1.0f;
+				vertices[count*20 + 14] = 1.0f;
+
+				vertices[count*20 + 17] = 1.0f;
+				vertices[count*20 + 18] = 0.0f;
+				vertices[count*20 + 19] = 1.0f;
+				break;
+			case NX:
+				vertices[count*20 + 2] = 0.0f;
+				vertices[count*20 + 3] = 0.0f;
+				vertices[count*20 + 4] = 0.0f;
+
+				vertices[count*20 + 7] = 0.0f;
+				vertices[count*20 + 8] = 0.0f;
+				vertices[count*20 + 9] = 1.0f;
+
+				vertices[count*20 + 12] = 0.0f;
+				vertices[count*20 + 13] = 1.0f;
+				vertices[count*20 + 14] = 1.0f;
+
+				vertices[count*20 + 17] = 0.0f;
+				vertices[count*20 + 18] = 1.0f;
+				vertices[count*20 + 19] = 0.0f;
+				break;
+			}
+
+			// translate to relative position
+			for (int s=0; s<4; s++) {
+				vertices[count*20 + s*5 + 2] += (GLfloat)id.x;
+				vertices[count*20 + s*5 + 3] += (GLfloat)id.y;
+				vertices[count*20 + s*5 + 4] += (GLfloat)id.z;
+			}
+
+			count++;
+		}
+	}
+}
+
+void Render::GenerateVBOArray(GLfloat *vertices, Block *blocks) {
+	
+	if (vertices == 0) {
+		MessageBox(0, "wrong usage", "ha", 0);
+		return;
+	}
+	
 	int count = 0;
 	// now generate vertex & quads
 	for (int i=0; i<CHUNK_W; i++) {
 		for (int j=0; j<CHUNK_L; j++) {
 			for (int k=0; k<CHUNK_H; k++) {
-				if (map_chk->blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden == 1)
+				if (blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden == 1)
 					continue;
 
-				int type = map_chk->blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].type;
+				int type = blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].type;
 
 				if (type == Block::NUL)
 					continue;
 
 				for (int w=0; w<6; w++) { // 6 faces
 					float2 coord;
-					self->render->GetTextureCoordinates(type, w, coord);
+					GetTextureCoordinates(type, w, coord);
 					coord.x += 0.001f;
 					coord.y += 0.001f;
 					float csize = 1/16.0f;
@@ -935,6 +1228,53 @@ void Render::RenderChunkThread::threadLoadChunk(render_pair pair, Render::Render
 			}
 		}
 	}
+}
+
+void Render::RenderChunkThread::threadLoadChunk(render_pair pair, Render::RenderChunkThread *self) {
+	render_chunk *ren_chk = pair.first;
+	map_chunk *map_chk = pair.second;
+
+	if (ren_chk == 0)
+		return;
+
+	ren_chk->failed = 0;
+	ren_chk->loaded = 0;
+	ren_chk->unneeded = 0;
+
+	if (map_chk == 0 || ren_chk->id != map_chk->id) {
+		ren_chk->failed = 1;
+		return;
+	}
+
+	if (map_chk->loaded == 0 || map_chk->failed == 1 || map_chk->unneeded == 1) {
+		ren_chk->failed = 1;
+		return;
+	}
+
+	// calculate how many blocks we need to store in VBO and its required size
+	self->render->CalculateVisible2(map_chk->id);
+
+	Block *blocks = map_chk->blocks;
+	int size = 0;
+	for (int i=0; i<CHUNK_W*CHUNK_L*CHUNK_H; i++) {
+		if (blocks[i].type == Block::NUL || blocks[i].hidden == 1)
+			continue;
+		size++;
+	}
+
+	GLfloat *vertices = 0;
+	vertices = new GLfloat[size*6*20];
+
+	if (vertices == 0) {
+		MessageBox(0, "vertices alloc failed", "haha", 0);
+		ren_chk->failed = 1;
+		return;
+	}
+
+	self->render->GenerateVBOArray(vertices, map_chk->blocks);
+
+	ren_chk->num_faces = size*6;
+
 	
 	glGenBuffersARB(1, &ren_chk->vbo);
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, ren_chk->vbo);
@@ -979,28 +1319,24 @@ void Render::RenderChunkThread::threadLoadChunk2(render_pair pair, Render::Rende
 	// calculate how many blocks we need to store in VBO and its required size
 	self->render->CalculateVisible2(map_chk->id);
 
-	int size = 0;
-	for (int i=0; i<CHUNK_W*CHUNK_L*CHUNK_H; i++) {
-		if (map_chk->blocks[i].type == Block::NUL)
-			continue;
-		if (map_chk->blocks[i].hidden == 0)
-			size++;
-	}
+	Block *blocks = map_chk->blocks;
+
+	ren_chk->num_faces = 0;
 	
 	glGenBuffersARB(1, &ren_chk->vbo);
-	glBindBufferARB(GL_ARRAY_BUFFER_ARB, ren_chk->vbo);
-
-	// now upload to graphics card
-	glBufferDataARB(GL_ARRAY_BUFFER_ARB, size*6*20*sizeof(GLfloat), 0, GL_STATIC_DRAW_ARB);
 
 	GLenum err = glGetError();
 	if (err != 0) {
 		MessageBox(0, "glGenBuffer ERROR!!", "aha", 0);
 	}
 
-	glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
+	for (int i=0; i<CHUNK_W*CHUNK_L*CHUNK_H; i++) {
+		if (blocks[i].type == Block::NUL || blocks[i].hidden == 1)
+			continue;
+		blocks[i].modified = 1;
+	}
+	
+	map_chk->modified = 1;
 
 	ren_chk->loaded = 1;
 }
-
-

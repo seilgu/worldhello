@@ -16,6 +16,8 @@ PFNGLUNMAPBUFFERARBPROC glUnmapBufferARB;                   // unmap VBO procedu
 
 #include <math.h>
 #include "common.h"
+#include "texture.h"
+#include "Render.h"
 
 #define WIDTH	1200
 #define HEIGHT	800
@@ -172,6 +174,87 @@ bool CheckVBOSupport() {
     }
 }
 #endif
+
+GLuint blockDisplayList;
+void CompileDisplayLists() {
+	blockDisplayList = glGenLists(256);
+
+	// 256 types of blocks, not textures
+	for (int i=0; i<256; i++) {
+		glNewList(blockDisplayList + i, GL_COMPILE);
+		
+		GLuint side_texture;
+
+		for (int w=0; w<6; w++) {
+			switch (i) {
+			case Block::CRATE: // Draw a crate
+				side_texture = TextureMgr::CRATE;
+				break;
+			case Block::GRASS: // Draw a grass
+				switch (w) {
+				case Render::PZ: side_texture = TextureMgr::GRASS_TOP; break;
+				case Render::NZ: side_texture = TextureMgr::GRASS_BUTTOM; break;
+				default: side_texture = TextureMgr::GRASS_SIDE; break;
+				}
+				break;
+			case Block::SOIL:
+				side_texture = TextureMgr::SOIL;
+				break;
+			default: break;
+			}
+
+			float2 coord;
+			float csize = 1/16.0f;
+			coord = get_texture_coord(side_texture);
+
+			glBegin(GL_QUADS);
+			switch (w) {
+			case Render::PZ: // top
+				glTexCoord2f(coord.x, coord.y);				glVertex3f(0.0f, 0.0f, 1.0f);
+				glTexCoord2f(coord.x+csize, coord.y);		glVertex3f(1.0f, 0.0f, 1.0f);
+				glTexCoord2f(coord.x+csize, coord.y+csize); glVertex3f(1.0f, 1.0f, 1.0f);
+				glTexCoord2f(coord.x, coord.y+csize);		glVertex3f(0.0f, 1.0f, 1.0f);
+				break;
+			case Render::NZ: // buttom
+				glTexCoord2f(coord.x, coord.y);				glVertex3f(1.0f, 0.0f, 0.0f);
+				glTexCoord2f(coord.x+csize, coord.y);		glVertex3f(0.0f, 0.0f, 0.0f);
+				glTexCoord2f(coord.x+csize, coord.y+csize); glVertex3f(0.0f, 1.0f, 0.0f);
+				glTexCoord2f(coord.x, coord.y+csize);		glVertex3f(1.0f, 1.0f, 0.0f);
+				break;
+			case Render::PY: // +y
+				glTexCoord2f(coord.x, coord.y);				glVertex3f(1.0f, 1.0f, 0.0f);
+				glTexCoord2f(coord.x+csize, coord.y);		glVertex3f(0.0f, 1.0f, 0.0f);
+				glTexCoord2f(coord.x+csize, coord.y+csize);	glVertex3f(0.0f, 1.0f, 1.0f);
+				glTexCoord2f(coord.x, coord.y+csize);		glVertex3f(1.0f, 1.0f, 1.0f);
+				break;
+			case Render::NY: // -y
+				glTexCoord2f(coord.x, coord.y);				glVertex3f(0.0f, 0.0f, 0.0f);
+				glTexCoord2f(coord.x+csize, coord.y);		glVertex3f(1.0f, 0.0f, 0.0f);
+				glTexCoord2f(coord.x+csize, coord.y+csize);	glVertex3f(1.0f, 0.0f, 1.0f);
+				glTexCoord2f(coord.x, coord.y+csize);		glVertex3f(0.0f, 0.0f, 1.0f);
+				break;
+			case Render::PX: // +x
+				glTexCoord2f(coord.x, coord.y);				glVertex3f(1.0f, 0.0f, 0.0f);
+				glTexCoord2f(coord.x+csize, coord.y);		glVertex3f(1.0f, 1.0f, 0.0f);
+				glTexCoord2f(coord.x+csize, coord.y+csize);	glVertex3f(1.0f, 1.0f, 1.0f);
+				glTexCoord2f(coord.x, coord.y+csize);		glVertex3f(1.0f, 0.0f, 1.0f);
+				break;
+			case Render::NX: // -x
+				glTexCoord2f(coord.x, coord.y);				glVertex3f(0.0f, 0.0f, 0.0f);
+				glTexCoord2f(coord.x, coord.y+csize);		glVertex3f(0.0f, 0.0f, 1.0f);
+				glTexCoord2f(coord.x+csize, coord.y+csize); glVertex3f(0.0f, 1.0f, 1.0f);
+				glTexCoord2f(coord.x+csize, coord.y);		glVertex3f(0.0f, 1.0f, 0.0f);
+				break;
+			}
+			glEnd();
+		}
+		glEndList();
+	}
+}
+
+void DeleteDisplayLists() {
+	glDeleteLists(blockDisplayList, 256);
+}
 
 GLvoid ReSizeGLScene(GLsizei width, GLsizei height)		// Resize And Initialize The GL Window
 {

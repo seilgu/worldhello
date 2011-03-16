@@ -16,9 +16,19 @@
 #endif
 
 
+#include "common.h"
+
 #define TX_ROW	16	// 16*16 = 256 textures in one file
 
 #define TX(i, j) ((j)*TX_ROW + (i))
+
+inline float2 get_texture_coord(int tx) {
+	float2 coord;
+	coord.y = (tx/TX_ROW)/16.0f;
+	coord.x = (tx%TX_ROW)/16.0f;
+
+	return coord;
+}
 
 class TextureMgr {
 public:
