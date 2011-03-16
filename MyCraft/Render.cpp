@@ -20,6 +20,7 @@ void UpdateVBO(render_chunk *renchk, map_chunk *mapchk) {
 
 	Block *blocks = mapchk->blocks;
 
+	block_list *blockList = &renchk->blockList;
 	// check if map modified, if so, update visible blocks
 	for (int i=0; i<CHUNK_W; i++) {
 		for (int j=0; j<CHUNK_L; j++) {
@@ -27,23 +28,32 @@ void UpdateVBO(render_chunk *renchk, map_chunk *mapchk) {
 				if (blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].modified == 0)
 					continue;
 
-				// it's modified, update it & each side's block's visibility
-				if (blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque == 1) {
-					blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + CLAMPW(i+1)].opaque &= 1;
-					blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + CLAMPW(i-1)].hidden &= 1;
-					blocks[k*(CHUNK_W*CHUNK_L) + CLAMPL(j+1)*(CHUNK_W) + i].hidden &= 1;
-					blocks[k*(CHUNK_W*CHUNK_L) + CLAMPL(j-1)*(CHUNK_W) + i].hidden &= 1;
-					blocks[CLAMPH(k+1)*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden &= 1;
-					blocks[CLAMPH(k-1)*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden &= 1;
+				int3 index = int3(i, j, k);
+				if (blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden == 1) { // removed
+					block_list::iterator it_rm = blockList->find(index);
+					if (it_rm != blockList->end()) { // should always happen
+						int num_rm = it_rm->second;
+						if (num_rm == blockList->size() - 1) { // deleting the last one, easy
+							blockList->erase(it_rm);
+						}
+						else { // since there is no assignment, delete two and insert one
+							block_list::to::iterator it_cp = blockList->to.find(blockList->size() - 1);
+							int3 id_cp = it_cp->second;
+
+							blockList->to.erase(it_cp);
+							blockList->erase(it_rm);
+
+							blockList->insert( std::pair<int3, int>(id_cp, num_rm) );
+						}
+					}
 				}
-				else { // transparent
-					blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + CLAMPW(i+1)].hidden = 0;
-					blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + CLAMPW(i-1)].hidden = 0;
-					blocks[k*(CHUNK_W*CHUNK_L) + CLAMPL(j+1)*(CHUNK_W) + i].hidden = 0;
-					blocks[k*(CHUNK_W*CHUNK_L) + CLAMPL(j-1)*(CHUNK_W) + i].hidden = 0;
-					blocks[CLAMPH(k+1)*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden = 0;
-					blocks[CLAMPH(k-1)*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden = 0;
+				else { // added
+					//blockList->insert(
 				}
+
+				// we still need to use glBufferData, which requires an arra
+				// do this after
+				//blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].modified = 0;
 			}
 		}
 	}
@@ -446,7 +456,7 @@ void Render::RenderChunk(render_chunk *tmp, float3 pos, float3 dir) {
 
 	// frustum culling
 
-	int3 id = tmp->id;
+	/*int3 id = tmp->id;
 
 	// right plane normal
 	normalize(dir);
@@ -481,7 +491,7 @@ void Render::RenderChunk(render_chunk *tmp, float3 pos, float3 dir) {
 
 		if (dot_prod(normal, n) > 0)
 			return;
-	}
+	}*/
 	
 
 	
@@ -629,6 +639,12 @@ void Render::DrawScene(float3 pos, float3 dir, float dist) {
 
 	glPushMatrix();	
 
+	glBegin(GL_QUADS);
+	glVertex3f(0, 0, 0);
+	glVertex3f(0, 100, 0);
+	glVertex3f(100, 100, 0);
+	glVertex3f(100, 0, 0);
+	glEnd();
 	gluLookAt(pos.x, pos.y, pos.z, pos.x+dir.x, pos.y+dir.y, pos.z+dir.z, 0, 0, 1);
 
 	glBindTexture(GL_TEXTURE_2D, s_Texture->block_texture);
@@ -774,10 +790,10 @@ void Render::RenderChunkThread::threadLoadChunk(render_pair pair, Render::Render
 				for (int w=0; w<6; w++) { // 6 faces
 					float2 coord;
 					self->render->GetTextureCoordinates(type, w, coord);
-					coord.x += 0.01f;
-					coord.y += 0.01f;
+					coord.x += 0.001f;
+					coord.y += 0.001f;
 					float csize = 1/16.0f;
-					csize -= 0.02f;
+					csize -= 0.002f;
 
 					// texture coordinates are in the same order in each face except NX
 					if (w == NX) {
@@ -964,203 +980,27 @@ void Render::RenderChunkThread::threadLoadChunk2(render_pair pair, Render::Rende
 	self->render->CalculateVisible2(map_chk->id);
 
 	int size = 0;
-	for (int i=0; i<CHUNK_W; i++) {
-		for (int j=0; j<CHUNK_L; j++) {
-			for (int k=0; k<CHUNK_H; k++) {
-				if (map_chk->blocks[i].type == Block::NUL)
-					continue;
-				if (map_chk->blocks[i].hidden == 0)
-					ren_chk->blockList.insert( std::pair<int3, Block *>(int3(i, j, k), &map_chk->blocks[i]) );
-			}
-		}
-	}
-	////////////////////////////////////////awefawefawefawef
-	ren_chk->num_faces = size*6;
-
-	// size = #CUBES, required size = #CUBE*6*( (2+3)*4 )
-	GLfloat *vertices = 0;
-	vertices = new GLfloat[size*6*20];
-
-	if (vertices == 0) {
-		MessageBox(0, "VERTICES ALLOC FAILED", "haha", 0);
-		ren_chk->failed = 1;
-		return;
-	}
-
-	int count = 0;
-	// now generate vertex & quads
-	for (int i=0; i<CHUNK_W; i++) {
-		for (int j=0; j<CHUNK_L; j++) {
-			for (int k=0; k<CHUNK_H; k++) {
-				if (map_chk->blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden == 1)
-					continue;
-
-				int type = map_chk->blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].type;
-
-				if (type == Block::NUL)
-					continue;
-
-				for (int w=0; w<6; w++) { // 6 faces
-					float2 coord;
-					self->render->GetTextureCoordinates(type, w, coord);
-					float csize = 1/16.0f;
-
-					// texture coordinates are in the same order in each face except NX
-					if (w == NX) {
-						vertices[count*20 + 0] = coord.x;
-						vertices[count*20 + 1] = coord.y;
-						vertices[count*20 + 5] = coord.x;
-						vertices[count*20 + 6] = coord.y+csize;
-						vertices[count*20 + 10] = coord.x+csize;
-						vertices[count*20 + 11] = coord.y+csize;
-						vertices[count*20 + 15] = coord.x+csize;
-						vertices[count*20 + 16] = coord.y;
-					}
-					else {
-						vertices[count*20 + 0] = coord.x;
-						vertices[count*20 + 1] = coord.y;
-						vertices[count*20 + 5] = coord.x+csize;
-						vertices[count*20 + 6] = coord.y;
-						vertices[count*20 + 10] = coord.x+csize;
-						vertices[count*20 + 11] = coord.y+csize;
-						vertices[count*20 + 15] = coord.x;
-						vertices[count*20 + 16] = coord.y+csize;
-					}
-					// now setup vertex coordinates of each face
-					switch (w) {
-					case PZ:
-						vertices[count*20 + 2] = 0.0f;
-						vertices[count*20 + 3] = 0.0f;
-						vertices[count*20 + 4] = 1.0f;
-
-						vertices[count*20 + 7] = 1.0f;
-						vertices[count*20 + 8] = 0.0f;
-						vertices[count*20 + 9] = 1.0f;
-
-						vertices[count*20 + 12] = 1.0f;
-						vertices[count*20 + 13] = 1.0f;
-						vertices[count*20 + 14] = 1.0f;
-
-						vertices[count*20 + 17] = 0.0f;
-						vertices[count*20 + 18] = 1.0f;
-						vertices[count*20 + 19] = 1.0f;
-						break;
-					case NZ:
-						vertices[count*20 + 2] = 1.0f;
-						vertices[count*20 + 3] = 0.0f;
-						vertices[count*20 + 4] = 0.0f;
-
-						vertices[count*20 + 7] = 0.0f;
-						vertices[count*20 + 8] = 0.0f;
-						vertices[count*20 + 9] = 0.0f;
-
-						vertices[count*20 + 12] = 0.0f;
-						vertices[count*20 + 13] = 1.0f;
-						vertices[count*20 + 14] = 0.0f;
-
-						vertices[count*20 + 17] = 1.0f;
-						vertices[count*20 + 18] = 1.0f;
-						vertices[count*20 + 19] = 0.0f;
-						break;
-					case PY:
-						vertices[count*20 + 2] = 1.0f;
-						vertices[count*20 + 3] = 1.0f;
-						vertices[count*20 + 4] = 0.0f;
-
-						vertices[count*20 + 7] = 0.0f;
-						vertices[count*20 + 8] = 1.0f;
-						vertices[count*20 + 9] = 0.0f;
-
-						vertices[count*20 + 12] = 0.0f;
-						vertices[count*20 + 13] = 1.0f;
-						vertices[count*20 + 14] = 1.0f;
-
-						vertices[count*20 + 17] = 1.0f;
-						vertices[count*20 + 18] = 1.0f;
-						vertices[count*20 + 19] = 1.0f;
-						break;
-					case NY:
-						vertices[count*20 + 2] = 0.0f;
-						vertices[count*20 + 3] = 0.0f;
-						vertices[count*20 + 4] = 0.0f;
-
-						vertices[count*20 + 7] = 1.0f;
-						vertices[count*20 + 8] = 0.0f;
-						vertices[count*20 + 9] = 0.0f;
-
-						vertices[count*20 + 12] = 1.0f;
-						vertices[count*20 + 13] = 0.0f;
-						vertices[count*20 + 14] = 1.0f;
-
-						vertices[count*20 + 17] = 0.0f;
-						vertices[count*20 + 18] = 0.0f;
-						vertices[count*20 + 19] = 1.0f;
-						break;
-					case PX:
-						vertices[count*20 + 2] = 1.0f;
-						vertices[count*20 + 3] = 0.0f;
-						vertices[count*20 + 4] = 0.0f;
-
-						vertices[count*20 + 7] = 1.0f;
-						vertices[count*20 + 8] = 1.0f;
-						vertices[count*20 + 9] = 0.0f;
-
-						vertices[count*20 + 12] = 1.0f;
-						vertices[count*20 + 13] = 1.0f;
-						vertices[count*20 + 14] = 1.0f;
-
-						vertices[count*20 + 17] = 1.0f;
-						vertices[count*20 + 18] = 0.0f;
-						vertices[count*20 + 19] = 1.0f;
-						break;
-					case NX:
-						vertices[count*20 + 2] = 0.0f;
-						vertices[count*20 + 3] = 0.0f;
-						vertices[count*20 + 4] = 0.0f;
-
-						vertices[count*20 + 7] = 0.0f;
-						vertices[count*20 + 8] = 0.0f;
-						vertices[count*20 + 9] = 1.0f;
-
-						vertices[count*20 + 12] = 0.0f;
-						vertices[count*20 + 13] = 1.0f;
-						vertices[count*20 + 14] = 1.0f;
-
-						vertices[count*20 + 17] = 0.0f;
-						vertices[count*20 + 18] = 1.0f;
-						vertices[count*20 + 19] = 0.0f;
-						break;
-					}
-
-					// translate to relative position
-					for (int s=0; s<4; s++) {
-						vertices[count*20 + s*5 + 2] += (GLfloat)i;
-						vertices[count*20 + s*5 + 3] += (GLfloat)j;
-						vertices[count*20 + s*5 + 4] += (GLfloat)k;
-					}
-
-					// next face
-					count++;
-				}
-			}
-		}
+	for (int i=0; i<CHUNK_W*CHUNK_L*CHUNK_H; i++) {
+		if (map_chk->blocks[i].type == Block::NUL)
+			continue;
+		if (map_chk->blocks[i].hidden == 0)
+			size++;
 	}
 	
 	glGenBuffersARB(1, &ren_chk->vbo);
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, ren_chk->vbo);
 
 	// now upload to graphics card
-	glBufferDataARB(GL_ARRAY_BUFFER_ARB, size*6*20*sizeof(GLfloat), vertices, GL_STATIC_DRAW_ARB);
+	glBufferDataARB(GL_ARRAY_BUFFER_ARB, size*6*20*sizeof(GLfloat), 0, GL_STATIC_DRAW_ARB);
 
 	GLenum err = glGetError();
 	if (err != 0) {
 		MessageBox(0, "glGenBuffer ERROR!!", "aha", 0);
 	}
 
-	delete[] vertices;
-	vertices = 0;
-
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
 
 	ren_chk->loaded = 1;
 }
+
+

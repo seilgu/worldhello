@@ -20,6 +20,7 @@
 #include "common.h"
 #include "Map.h"
 #include "texture.h"
+#include "bimap.h"
 #include <map>
 
 #ifndef APPLE
@@ -52,12 +53,13 @@ extern class TextureMgr *s_Texture;
 	now that you use std::vector to store T2F_V3F
 
 ************************************************************/
-typedef std::map<int3, Block *, id_compare> block_list;
+using codeproject::bimap;
+typedef bimap<int3, int, id_compare, std::less<int>> block_list;
 struct render_chunk {
 	int3 id;
-	int num_faces;
 	GLuint vbo;
 	block_list blockList;
+	int num_faces;
 	unsigned short loaded:1;
 	unsigned short failed:1;
 	unsigned short unneeded:1;
