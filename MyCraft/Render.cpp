@@ -191,8 +191,11 @@ void Render::CalculateVisible(int3 id, World* world) {
 	// second pass, find liquid
 	for (int i=0; i<CHUNK_W*CHUNK_L*CHUNK_H; i++) {
 		if (blocks[i].modified == 1) {
-			if (blocks[i].type == Block::GLASS)
+			if (blocks[i].type == Block::GLASS) {
 				blocks[i].opaque = 1;
+				blocks[i].hidden = 1;
+				blocks[i].outside = 0;
+			}
 		}
 	}
 	// scan in 3 directions, toggle inside/outside
@@ -248,7 +251,9 @@ void Render::CalculateVisible(int3 id, World* world) {
 		}
 	}
 	
-
+	for (int w=0; w<6; w++) {
+		CheckChunkSide(id, w);
+	}
 }
 
 void Render::CheckChunkSide(int3 id, int dir) {

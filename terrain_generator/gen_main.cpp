@@ -59,13 +59,6 @@ void tobase36(int from, char to[]) {
 #define PI 3.14159f
 
 
-float height[CHUNK_W][CHUNK_L];
-
-#define DEPTH 4
-std::vector<float> amp[DEPTH];
-
-float persistence = 0.7f;
-
 /********* Chunk discription ***********
 	File name : ###_###_###.chk
 		###s being id.x, id.y, id.z
@@ -100,6 +93,61 @@ struct chunk_header {
 	int idx, idy, idz;
 };
 
+float noise2(int x, int y) {
+	int n;
+    n = x + y * 57;
+    n = (n<<13) ^ n;
+    return ( 1.0 - ( (n * (n * n * 15731 + 789221) + 1376312589) & 0x7fffffff) / 1073741824.0); 
+}
+
+float smooth_noise2(int x, int y) {
+	float corners = ( noise2(x-1, y-1)+noise2(x+1, y-1)+noise2(x-1, y+1)+noise2(x+1, y+1) ) / 16;
+    float sides   = ( noise2(x-1, y)  +noise2(x+1, y)  +noise2(x, y-1)  +noise2(x, y+1) ) /  8;
+    float center  =  noise2(x, y) / 4;
+
+    return corners + sides + center;
+}
+
+float Interpolate(float a, float b, float x) {
+	float ft = x * 3.1415927;
+	float f = (1 - cos(ft)) * 0.5;
+	
+	return a*(1-f) + b*f;
+}
+
+float interpolate_noise(float x, float y) {
+	int integer_X    = (int)x;
+    float fractional_X = x - integer_X;
+
+    int integer_Y    = (int)y;
+    float fractional_Y = y - integer_Y;
+
+    float v1 = smooth_noise2(integer_X,     integer_Y);
+    float v2 = smooth_noise2(integer_X + 1, integer_Y);
+    float v3 = smooth_noise2(integer_X,     integer_Y + 1);
+    float v4 = smooth_noise2(integer_X + 1, integer_Y + 1);
+
+    float i1 = Interpolate(v1 , v2 , fractional_X);
+    float i2 = Interpolate(v3 , v4 , fractional_X);
+
+    return Interpolate(i1 , i2 , fractional_Y);
+}
+
+float Perlin2D(float x, float y) {
+	float total = 0;
+	
+	int octave = 8;
+	float persistence = 0.6f;
+
+	for (int i=0; i<octave; i++) {
+		float freq = pow(2.0, i);
+		float amp = pow(persistence, i);
+
+		total += interpolate_noise(x*freq, y*freq) * amp;
+	}
+
+	return total;
+}
 
 // Offset is used to relate relative position in the world
 int generate_terrain(short int *terrain, int3 offset, int3 dim) {
@@ -110,73 +158,45 @@ int generate_terrain(short int *terrain, int3 offset, int3 dim) {
 		return 0;
 	}
 	
+	float height[CHUNK_W][CHUNK_L];
+
 	for (int i=0; i<CHUNK_W; i++) {
 		for (int j=0; j<CHUNK_L; j++) {
-			height[i][j] = 0;
+			height[i][j] = Perlin2D( (float)(offset.x + i + W*CHUNK_W)/(W*CHUNK_W), (float)(offset.y + j + L*CHUNK_L)/(L*CHUNK_L));
+			//printf(":::: %f ", noise2(offset.x+i, offset.y+j));
 		}
 	}
 
-	int power;
-	power = 1;
-	for (int k=0; k<DEPTH; k++) {
-		std::vector<float>::iterator it;
-		int kx, ky;
-		
-		int count = 0;
-		for (it = amp[k].begin(); it != amp[k].end(); ++it) {
-			
-			ky = count/power;
-			kx = count%power;
-
-			float xoff = 0;
-			float yoff = 0;
-
-			for (int i=0; i<dim.x; i++) {
-				for (int j=0; j<dim.y; j++) {
-					height[i][j] += sin(PI*kx*(i+offset.x + xoff)/(W*CHUNK_W))*sin(PI*ky*(j+offset.y + yoff)/(L*CHUNK_L))*(*it);
-				}
-			}
-			count++;
-		}
-		power *= 2;
-	}
-	for (int i=0; i<dim.x; i++) {
-		for (int j=0; j<dim.y; j++) {
-			height[i][j] *= CHUNK_H*0.06f;
-			height[i][j] += CHUNK_H*0.5f;
+	
+	for (int i=0; i<CHUNK_W; i++) {
+		for (int j=0; j<CHUNK_L; j++) {
+			height[i][j] *= 80;
+			height[i][j] += 64.0f;
 		}
 	}
 
-	int3 pos;
-	for (int i=0; i<dim.x; i++) {
-		for (int j=0; j<dim.y; j++) {
-			for (int k=0; k<dim.z; k++) {
-				pos.x = offset.x + i;
-				pos.y = offset.y + j;
-				pos.z = offset.z + k;
+	for (int i=0; i<CHUNK_W; i++) {
+		for (int j=0; j<CHUNK_L; j++) {
+			for (int k=0; k<CHUNK_H; k++) {
+				int3 pos(offset.x + i, offset.y + j, offset.z + k);
 
-				terrain[k*dim.x*dim.y + j*dim.x + i] = Block::NUL;
-				
-				if (pos.z + 3 < height[i][j]) {
-					terrain[k*dim.x*dim.y + j*dim.x + i] = Block::STONE;
-				}
+				terrain[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i] = Block::NUL;
+				if (pos.z + 3 < height[i][j])
+					terrain[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i] = Block::STONE;
+				else if (pos.z + 1 < height[i][j])
+					terrain[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i] = Block::SOIL;
 				else if (pos.z < height[i][j]) {
-					terrain[k*dim.x*dim.y + j*dim.x + i] = Block::SOIL;
-				}
-				else if (pos.z - 1 < height[i][j]) {
-					if (height[i][j] > 74) {
-						terrain[k*dim.x*dim.y + j*dim.x + i] = Block::SNOW;
-					}
-					else if (height[i][j] < 44) {
-						terrain[k*dim.x*dim.y + j*dim.x + i] = Block::SAND;
-					}
-					else {
-						terrain[k*dim.x*dim.y + j*dim.x + i] = Block::GRASS;
-					}
+					if (height[i][j] > 69)
+						terrain[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i] = Block::SNOW;
+					else
+						terrain[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i] = Block::GRASS;
 				}
 
-				if (height[i][j] < 62 && pos.z > height[i][j] && pos.z < 62) {
-					terrain[k*dim.x*dim.y + j*dim.x + i] = Block::GLASS;
+				else if (pos.z < 43) {
+					terrain[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i] = Block::GLASS;
+				}
+				else if (pos.z == 43 && pos.z - 1 < height[i][j]) {
+					terrain[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i] = Block::SAND;
 				}
 			}
 		}
@@ -247,13 +267,6 @@ int generate_chunk(int3 chkid, int3 dim, unsigned int id) {
 
 void make_noise() {
 	printf("generating noise...");
-	int power = 1;
-	for (int i=0; i<DEPTH; i++) {
-		for (int j=0; j<power*power; j++) {
-			amp[i].push_back((float)MersenneRandomD()*pow(persistence, i));
-		}
-		power *= 2;
-	}
 	printf("done\n\n");
 }
 
