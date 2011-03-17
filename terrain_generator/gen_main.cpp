@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <math.h>
+#include <vector>
+#include "../MyCraft/Block.h"
 
 #ifndef APPLE
 #include "asmlibran.h"
@@ -45,6 +48,24 @@ void tobase36(int from, char to[]) {
 }
 
 
+
+#define CHUNK_W 16
+#define CHUNK_L 16
+#define CHUNK_H 128
+#define W 10
+#define L 10
+#define H 3
+
+#define PI 3.14159f
+
+
+float height[CHUNK_W][CHUNK_L];
+
+#define DEPTH 4
+std::vector<float> amp[DEPTH];
+
+float persistence = 0.7f;
+
 /********* Chunk discription ***********
 	File name : ###_###_###.chk
 		###s being id.x, id.y, id.z
@@ -79,51 +100,89 @@ struct chunk_header {
 	int idx, idy, idz;
 };
 
-/** from Block.h
-	static const int NUL = 0;
-	static const int CRATE = 1;
-	static const int GRASS = 2;
-	static const int SOIL = 3;
-**/
 
 // Offset is used to relate relative position in the world
 int generate_terrain(short int *terrain, int3 offset, int3 dim) {
+	printf("generating chunk (%d, %d, %d)...", offset.x, offset.y, offset.z);
+	
+	if (offset.z != 0) {
+		printf("...done\n");
+		return 0;
+	}
+	
+	for (int i=0; i<CHUNK_W; i++) {
+		for (int j=0; j<CHUNK_L; j++) {
+			height[i][j] = 0;
+		}
+	}
+
+	int power;
+	power = 1;
+	for (int k=0; k<DEPTH; k++) {
+		std::vector<float>::iterator it;
+		int kx, ky;
+		
+		int count = 0;
+		for (it = amp[k].begin(); it != amp[k].end(); ++it) {
+			
+			ky = count/power;
+			kx = count%power;
+
+			float xoff = 0;
+			float yoff = 0;
+
+			for (int i=0; i<dim.x; i++) {
+				for (int j=0; j<dim.y; j++) {
+					height[i][j] += sin(PI*kx*(i+offset.x + xoff)/(W*CHUNK_W))*sin(PI*ky*(j+offset.y + yoff)/(L*CHUNK_L))*(*it);
+				}
+			}
+			count++;
+		}
+		power *= 2;
+	}
+	for (int i=0; i<dim.x; i++) {
+		for (int j=0; j<dim.y; j++) {
+			height[i][j] *= CHUNK_H*0.06f;
+			height[i][j] += CHUNK_H*0.5f;
+		}
+	}
+
 	int3 pos;
 	for (int i=0; i<dim.x; i++) {
 		for (int j=0; j<dim.y; j++) {
-			int height = MersenneIRandom(0, 0);
 			for (int k=0; k<dim.z; k++) {
 				pos.x = offset.x + i;
 				pos.y = offset.y + j;
 				pos.z = offset.z + k;
-<<<<<<< HEAD
 
-
-#ifndef APPLE
-				int test = MersenneIRandom(0, 10);
-#else
-				int test = rand()%10;
-#endif	
-
-=======
-				int test = MersenneIRandom(0, 10);
->>>>>>> 75d6a8c2622c13034092512be43f610405a6730c
-				terrain[k*dim.x*dim.y + j*dim.x + i] = 0;
-				if (pos.z < height) {
-					terrain[k*dim.x*dim.y + j*dim.x + i] = 3;
+				terrain[k*dim.x*dim.y + j*dim.x + i] = Block::NUL;
+				
+				if (pos.z + 3 < height[i][j]) {
+					terrain[k*dim.x*dim.y + j*dim.x + i] = Block::STONE;
 				}
-				if (pos.z == height) {
-					terrain[k*dim.x*dim.y + j*dim.x + i] = 2;
+				else if (pos.z < height[i][j]) {
+					terrain[k*dim.x*dim.y + j*dim.x + i] = Block::SOIL;
 				}
-				if (pos.z == height+1) {
-					if (test == 0) {
-						terrain[k*dim.x*dim.y + j*dim.x + i] = 1;
+				else if (pos.z - 1 < height[i][j]) {
+					if (height[i][j] > 74) {
+						terrain[k*dim.x*dim.y + j*dim.x + i] = Block::SNOW;
 					}
+					else if (height[i][j] < 44) {
+						terrain[k*dim.x*dim.y + j*dim.x + i] = Block::SAND;
+					}
+					else {
+						terrain[k*dim.x*dim.y + j*dim.x + i] = Block::GRASS;
+					}
+				}
+
+				if (height[i][j] < 62 && pos.z > height[i][j] && pos.z < 62) {
+					terrain[k*dim.x*dim.y + j*dim.x + i] = Block::GLASS;
 				}
 			}
 		}
 	}
 
+	printf("done\n");
 	return 1;
 }
 
@@ -138,6 +197,8 @@ int generate_chunk(int3 chkid, int3 dim, unsigned int id) {
 	if (terrain == 0) {	// allocation failed
 		return -1;
 	}
+
+	memset(terrain, 0, sizeof(short int)*dim.x*dim.y*dim.z);
 	
 	int3 offset;
 	offset.x = chkid.x*dim.x;
@@ -184,12 +245,29 @@ int generate_chunk(int3 chkid, int3 dim, unsigned int id) {
 	return 1;
 }
 
+void make_noise() {
+	printf("generating noise...");
+	int power = 1;
+	for (int i=0; i<DEPTH; i++) {
+		for (int j=0; j<power*power; j++) {
+			amp[i].push_back((float)MersenneRandomD()*pow(persistence, i));
+		}
+		power *= 2;
+	}
+	printf("done\n\n");
+}
+
+
 int main(int agrc, char *argv[]) {
 #ifndef APPLE
 	MersenneRandomInit((int)ReadTSC());
 #else
 	srand(time(0));
 #endif
+
+
+	make_noise();
+
 	// parameters
 	int3 chkid;
 	int3 dim(16, 16, 128);
@@ -206,6 +284,8 @@ int main(int agrc, char *argv[]) {
 			}
 		}
 	}
+
+	system("pause");
 
 	return 0;
 }

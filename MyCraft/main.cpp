@@ -189,12 +189,14 @@ void DrawGLScene()
 		if (map_chk->id.z != 0)
 			continue;
 
-
 		Block *blocks = map_chk->blocks;
 		for (int i=0; i<CHUNK_W; i++) {
 			for (int j=0; j<CHUNK_L; j++) {
-				blocks[1*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].type = MersenneIRandom(1, 3);
-				blocks[1*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque = 0;
+				blocks[1*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].type = MersenneIRandom(9, 10);
+				if (blocks[1*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].type == 9)
+					blocks[1*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque = 0;
+				else
+					blocks[1*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque = 1;
 				blocks[1*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].modified = 1;
 			}
 		}
@@ -213,18 +215,18 @@ void DrawGLScene()
 	fps = tickFreq/(currTick.LowPart - lastTick.LowPart);
 #endif
 	char buffer[128];
-	s_Render->PrintChunkStatistics(buffer);
 
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 	glOrtho(0, _width, 0, _height, -1, 1);
 
 	glScalef(20, 20, 1);
-
+	
 	glPushMatrix();
 	glPrint("FPS:%4.0f %d,%d,%d", fps, id.x, id.y, id.z);
 	glPopMatrix();
-
+	
+	s_Render->PrintChunkStatistics(buffer);
 	glPushMatrix();
 	glTranslatef(0, 1, 0);
 	glPrint("%s", buffer);

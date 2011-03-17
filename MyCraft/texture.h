@@ -37,6 +37,17 @@ public:
 	static const int GRASS_BUTTOM = TX(2, 15);
 	static const int CRATE = TX(9, 14);
 	static const int SOIL = TX(2, 15);
+	static const int STONE = TX(1, 15);
+	static const int GOLD_MINE = TX(0, 13);
+	static const int COAL_MINE = TX(2, 13);
+	static const int COAL = TX(1, 14);
+	static const int SAND = TX(2, 14);
+	//static const int GLASS = TX(3, 11);
+	static const int GLASS = TX(15, 2);
+	static const int LAVA = TX(15, 0);
+	static const int SNOW_TOP = TX(2, 11);
+	static const int SNOW_SIDE = TX(4, 11);
+	static const int SNOW_BUTTOM = TX(2, 15);
 
 	GLfloat *textureArray[256];
 	GLuint block_texture;

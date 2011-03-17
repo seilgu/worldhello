@@ -283,9 +283,9 @@ BOOL InitGL()
 	
 	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
 
-	/*GLfloat mat_specular[] = { 1.0, 1.0, 1.0, 1.0 };
+	GLfloat mat_specular[] = { 1.0, 1.0, 1.0, 1.0 };
 	GLfloat mat_shininess[] = { 50.0 };
-	GLfloat light_position[] = { 1.0, 1.0, 2.0, 0.0 };
+	GLfloat light_position[] = { 1.0, 1.0, 4.0, 0.0 };
 
 	glMaterialfv(GL_FRONT, GL_SPECULAR, mat_specular);
 	glMaterialfv(GL_FRONT, GL_SHININESS, mat_shininess);
@@ -293,7 +293,7 @@ BOOL InitGL()
 
 	glEnable(GL_LIGHTING);
 	glEnable(GL_LIGHT0);
-	glEnable(GL_COLOR_MATERIAL);*/
+	glEnable(GL_COLOR_MATERIAL);
 
 	glEnable(GL_TEXTURE_2D);
 	glEnable(GL_BLEND);
@@ -301,8 +301,8 @@ BOOL InitGL()
 	glEnable(GL_POINT_SMOOTH);
 	glEnable(GL_DEPTH_TEST); // required for smooth lines!
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glEnable(GL_CULL_FACE);
-	glCullFace(GL_BACK);
+	//glEnable(GL_CULL_FACE);
+	//glCullFace(GL_BACK);
 #ifndef APPLE
 	BuildFont();
 
