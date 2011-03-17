@@ -119,18 +119,17 @@ void Render::CalculateVisible(int3 id, World* world) {
 	// cleaning and setup
 	for (int i=0; i<CHUNK_W*CHUNK_L*CHUNK_H; i++) {
 		if (blocks[i].modified == 1) {
-			blocks[i].hidden = blocks[i].opaque;
-			blocks[i].outside = 0;
+			// for first and second pass
+			if (blocks[i].opaque == 1 || blocks[i].translucent == 1) // hide all touchable
+				blocks[i].hidden = 1;
+			else
+				blocks[i].hidden = 0;
+
+			blocks[i].outside = 0; // clean face flag
 		}
 	}
 
 	// first pass, find solids
-	for (int i=0; i<CHUNK_W*CHUNK_L*CHUNK_H; i++) {
-		if (blocks[i].modified == 1) {
-			if (blocks[i].type == Block::GLASS)
-				blocks[i].opaque = 0;
-		}
-	}
 	// scan in 3 directions, toggle inside/outside
 	for (int i=0; i<CHUNK_W; i++) {
 		for (int j=0; j<CHUNK_L; j++) {
@@ -189,70 +188,76 @@ void Render::CalculateVisible(int3 id, World* world) {
 	}
 
 	// second pass, find liquid
-	for (int i=0; i<CHUNK_W*CHUNK_L*CHUNK_H; i++) {
-		if (blocks[i].modified == 1) {
-			if (blocks[i].type == Block::GLASS) {
-				blocks[i].opaque = 1;
-				blocks[i].hidden = 1;
-				blocks[i].outside = 0;
-			}
-		}
-	}
+	
 	// scan in 3 directions, toggle inside/outside
 	for (int i=0; i<CHUNK_W; i++) {
 		for (int j=0; j<CHUNK_L; j++) {
-			int inside = blocks[0*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque;
+			int inside = blocks[0*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].translucent;
 			for (int k=1; k<CHUNK_H; k++) {
-				if (inside == 0 && blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque == 1) {
+				if (inside == 0 && blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].translucent == 1) {
 					inside = 1;
-					blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden = 0;
-					blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].outside |= 1<<NZ;
+					if (blocks[(k-1)*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].type == Block::NUL) {
+						blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden = 0;
+						blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].outside |= 1<<NZ;
+					}
 				}
-				else if (inside == 1 && blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque == 0) {
+				else if (inside == 1 && blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].translucent == 0) {
 					inside = 0;
-					blocks[(k-1)*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden = 0;
-					blocks[(k-1)*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].outside |= 1<<PZ;
+					if (blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].type == Block::NUL) {
+						blocks[(k-1)*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden = 0;
+						blocks[(k-1)*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].outside |= 1<<PZ;
+					}
 				}
 			}
 		}
 	}
 	for (int i=0; i<CHUNK_W; i++) {
 		for (int k=0; k<CHUNK_H; k++) {
-			int inside = blocks[k*(CHUNK_W*CHUNK_L) + 0*(CHUNK_W) + i].opaque;
+			int inside = blocks[k*(CHUNK_W*CHUNK_L) + 0*(CHUNK_W) + i].translucent;
 			for (int j=1; j<CHUNK_L; j++) {
-				if (inside == 0 && blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque == 1) {
+				if (inside == 0 && blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].translucent == 1) {
 					inside = 1;
-					blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden = 0;
-					blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].outside |= 1<<NY;
+					if (blocks[k*(CHUNK_W*CHUNK_L) + (j-1)*(CHUNK_W) + i].type == Block::NUL) {
+						blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden = 0;
+						blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].outside |= 1<<NY;
+					}
 				}
-				else if (inside == 1 && blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque == 0) {
+				else if (inside == 1 && blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].translucent == 0) {
 					inside = 0;
-					blocks[k*(CHUNK_W*CHUNK_L) + (j-1)*(CHUNK_W) + i].hidden = 0;
-					blocks[k*(CHUNK_W*CHUNK_L) + (j-1)*(CHUNK_W) + i].outside |= 1<<PY;
+					if (blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].type == Block::NUL) {
+						blocks[k*(CHUNK_W*CHUNK_L) + (j-1)*(CHUNK_W) + i].hidden = 0;
+						blocks[k*(CHUNK_W*CHUNK_L) + (j-1)*(CHUNK_W) + i].outside |= 1<<PY;
+					}
 				}
 			}
 		}
 	}
 	for (int k=0; k<CHUNK_H; k++) {
 		for (int j=0; j<CHUNK_L; j++) {
-			int inside = blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + 0].opaque;
+			int inside = blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + 0].translucent;
 			for (int i=1; i<CHUNK_W; i++) {
-				if (inside == 0 && blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque == 1) {
+				if (inside == 0 && blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].translucent == 1) {
 					inside = 1;
-					blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden = 0;
-					blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].outside |= 1<<NX;
+					if (blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i-1].type == Block::NUL) {
+						blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden = 0;
+						blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].outside |= 1<<NX;
+					}
 				}
-				else if (inside == 1 && blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque == 0) {
+				else if (inside == 1 && blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].translucent == 0) {
 					inside = 0;
-					blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i-1].hidden = 0;
-					blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i-1].outside |= 1<<PX;
+					if (blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].type == Block::NUL) {
+						blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i-1].hidden = 0;
+						blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i-1].outside |= 1<<PX;
+					}
 				}
 			}
 		}
 	}
-	
-	for (int w=0; w<6; w++) {
-		CheckChunkSide(id, w);
+
+	for (int i=0; i<CHUNK_W*CHUNK_L*CHUNK_H; i++) {
+		if (blocks[i].modified == 1) {
+			blocks[i].modified = 0;
+		}
 	}
 }
 
@@ -530,9 +535,7 @@ void Render::UpdateVBO(render_chunk *ren_chk, map_chunk *map_chk) {
 		return;
 	}
 	
-	QueryPerformanceCounter(&lastTick);
 	GenerateVBOArray(vertices, map_chk->blocks);
-	QueryPerformanceCounter(&currTick);
 
 	ren_chk->num_faces = size;
 

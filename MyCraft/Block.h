@@ -23,12 +23,14 @@ public:
 	unsigned short modified:1;
 	unsigned short hidden:1;
 	unsigned short opaque:1;
+	unsigned short translucent:1;
 
 
 	Block() {
 		modified = 0;
 		hidden = 0;
 		opaque = 0;
+		translucent = 0;
 		type = Block::NUL;
 	}
 };

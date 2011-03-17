@@ -138,17 +138,18 @@ void DrawGLScene()
 		m_Player->eyepos = m_Player->eyepos - crpd/2.0;
 	}
 
-
-	s_Render->DiscardUnneededChunks(m_Player->eyepos, m_Player->dir, s_World);
 #ifndef APPLE
-	//QueryPerformanceCounter(&lastTick);
-#endif	
-	s_Render->LoadNeededChunks(m_Player->eyepos, m_Player->dir, s_World);
-#ifndef APPLE
-	//QueryPerformanceCounter(&currTick);
+	QueryPerformanceCounter(&lastTick);
 #endif
-	s_Render->DrawScene(m_Player->eyepos, m_Player->dir, 400, s_World);
+	s_Render->DiscardUnneededChunks(m_Player->eyepos, m_Player->dir, s_World);
 	
+	s_Render->LoadNeededChunks(m_Player->eyepos, m_Player->dir, s_World);
+
+	s_Render->DrawScene(m_Player->eyepos, m_Player->dir, 400, s_World);
+	#ifndef APPLE
+	QueryPerformanceCounter(&currTick);
+#endif
+
 	if (keys['K'] == TRUE) {
 		keys['K'] = FALSE;
 

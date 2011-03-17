@@ -236,9 +236,13 @@ void Map::MapChunkThread::threadLoadChunk(map_chunk *chk) {
 			for (int k=0; k<CHUNK_H; k++) {
 				unsigned short int t = type[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i];
 				blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].type = t;
-				blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque = (t == Block::NUL ? 0 : 1);
-				//if (blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].type == Block::GLASS)
-				//	blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque = 0;
+
+				if (t == Block::NUL || t == Block::GLASS)
+					blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque = 0;
+				else
+					blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque = 1;
+				blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].translucent = (t == Block::GLASS ? 1 : 0);
+
 				blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden = blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque;
 
 				if (blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].type != Block::NUL) {
