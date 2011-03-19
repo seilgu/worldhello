@@ -133,51 +133,51 @@ void Render::CalculateVisible(int3 id, World* world) {
 	// scan in 3 directions, toggle inside/outside
 	for (int i=0; i<CHUNK_W; i++) {
 		for (int j=0; j<CHUNK_L; j++) {
-			int inside = blocks[0*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque;
+			int inside = blocks[_1D(i, j, 0)].opaque;
 			for (int k=1; k<CHUNK_H; k++) {
-				if (inside == 0 && blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque == 1) {
+				if (inside == 0 && blocks[_1D(i, j, k)].opaque == 1) {
 					inside = 1;
-					blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden = 0;
-					blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].outside |= 1<<NZ;
+					blocks[_1D(i, j, k)].hidden = 0;
+					blocks[_1D(i, j, k)].outside |= 1<<NZ;
 				}
-				else if (inside == 1 && blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque == 0) {
+				else if (inside == 1 && blocks[_1D(i, j, k)].opaque == 0) {
 					inside = 0;
-					blocks[(k-1)*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden = 0;
-					blocks[(k-1)*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].outside |= 1<<PZ;
+					blocks[_1D(i, j, k-1)].hidden = 0;
+					blocks[_1D(i, j, k-1)].outside |= 1<<PZ;
 				}
 			}
 		}
 	}
 	for (int i=0; i<CHUNK_W; i++) {
 		for (int k=0; k<CHUNK_H; k++) {
-			int inside = blocks[k*(CHUNK_W*CHUNK_L) + 0*(CHUNK_W) + i].opaque;
+			int inside = blocks[_1D(i, 0, k)].opaque;
 			for (int j=1; j<CHUNK_L; j++) {
-				if (inside == 0 && blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque == 1) {
+				if (inside == 0 && blocks[_1D(i, j, k)].opaque == 1) {
 					inside = 1;
-					blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden = 0;
-					blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].outside |= 1<<NY;
+					blocks[_1D(i, j, k)].hidden = 0;
+					blocks[_1D(i, j, k)].outside |= 1<<NY;
 				}
-				else if (inside == 1 && blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque == 0) {
+				else if (inside == 1 && blocks[_1D(i, j, k)].opaque == 0) {
 					inside = 0;
-					blocks[k*(CHUNK_W*CHUNK_L) + (j-1)*(CHUNK_W) + i].hidden = 0;
-					blocks[k*(CHUNK_W*CHUNK_L) + (j-1)*(CHUNK_W) + i].outside |= 1<<PY;
+					blocks[_1D(i, j-1, k)].hidden = 0;
+					blocks[_1D(i, j-1, k)].outside |= 1<<PY;
 				}
 			}
 		}
 	}
 	for (int k=0; k<CHUNK_H; k++) {
 		for (int j=0; j<CHUNK_L; j++) {
-			int inside = blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + 0].opaque;
+			int inside = blocks[_1D(0, j, k)].opaque;
 			for (int i=1; i<CHUNK_W; i++) {
-				if (inside == 0 && blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque == 1) {
+				if (inside == 0 && blocks[_1D(i, j, k)].opaque == 1) {
 					inside = 1;
-					blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden = 0;
-					blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].outside |= 1<<NX;
+					blocks[_1D(i, j, k)].hidden = 0;
+					blocks[_1D(i, j, k)].outside |= 1<<NX;
 				}
-				else if (inside == 1 && blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque == 0) {
+				else if (inside == 1 && blocks[_1D(i, j, k)].opaque == 0) {
 					inside = 0;
-					blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i-1].hidden = 0;
-					blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i-1].outside |= 1<<PX;
+					blocks[_1D(i-1, j, k)].hidden = 0;
+					blocks[_1D(i-1, j, k)].outside |= 1<<PX;
 				}
 			}
 		}
@@ -407,8 +407,7 @@ void Render::GetTextureCoordinates(short int type, int dir, float2 &dst) {
 	// decide texture coordinates corr. face & type
 	GLuint side_texture;
 	switch (type) {
-	case Block::CRATE: // Draw a crate
-		side_texture = TextureMgr::CRATE;
+	case Block::CRATE: side_texture = TextureMgr::CRATE;
 		break;
 	case Block::GRASS:
 		switch (dir) {
@@ -417,29 +416,21 @@ void Render::GetTextureCoordinates(short int type, int dir, float2 &dst) {
 		default: side_texture = TextureMgr::GRASS_SIDE; break;
 		}
 		break;
-	case Block::SOIL:
-		side_texture = TextureMgr::SOIL;
+	case Block::SOIL: side_texture = TextureMgr::SOIL;
 		break;
-	case Block::STONE:
-		side_texture = TextureMgr::STONE;
+	case Block::STONE: side_texture = TextureMgr::STONE;
 		break;
-	case Block::GOLD_MINE:
-		side_texture = TextureMgr::GOLD_MINE;
+	case Block::GOLD_MINE: side_texture = TextureMgr::GOLD_MINE;
 		break;
-	case Block::COAL_MINE:
-		side_texture = TextureMgr::COAL_MINE;
+	case Block::COAL_MINE: side_texture = TextureMgr::COAL_MINE;
 		break;
-	case Block::COAL:
-		side_texture = TextureMgr::COAL;
+	case Block::COAL: side_texture = TextureMgr::COAL;
 		break;
-	case Block::SAND:
-		side_texture = TextureMgr::SAND;
+	case Block::SAND: side_texture = TextureMgr::SAND;
 		break;
-	case Block::GLASS:
-		side_texture = TextureMgr::GLASS;
+	case Block::GLASS: side_texture = TextureMgr::GLASS;
 		break;
-	case Block::LAVA:
-		side_texture = TextureMgr::LAVA;
+	case Block::LAVA: side_texture = TextureMgr::LAVA;
 		break;
 	case Block::SNOW:
 		switch (dir) {
@@ -489,25 +480,21 @@ void Render::UpdateVBO(render_chunk *ren_chk, map_chunk *map_chk) {
 	ren_chk->failed = 0;
 	ren_chk->loaded = 0;
 	ren_chk->unneeded = 0;
-
-
-	// calculate how many blocks we need to store in VBO and its required size
-	
-	CalculateVisible(map_chk->id, s_World);
 	
 	Block *blocks = map_chk->blocks;
 	int size = 0;
-	for (int i=0; i<CHUNK_W*CHUNK_L*CHUNK_H; i++) {
-		if (blocks[i].type == Block::NUL) continue;
-		
-		if (blocks[i].hidden == 1)
+
+	int i = CHUNK_W*CHUNK_L*CHUNK_H;
+	while (i--) {
+		if (blocks[i].type == Block::NUL || blocks[i].hidden == 1)
 			continue;
 
-		for (int w=0; w<6; w++) {
-			if ((blocks[i].outside & (1<<w)) != 0)
-				size++;
-		}
-		//size++;
+		if (blocks[i].outside & (1<<0)) size++;
+		if (blocks[i].outside & (1<<1)) size++;
+		if (blocks[i].outside & (1<<2)) size++;
+		if (blocks[i].outside & (1<<3)) size++;
+		if (blocks[i].outside & (1<<4)) size++;
+		if (blocks[i].outside & (1<<5)) size++;
 	}
 		
 	int newvbo = 0;
@@ -516,7 +503,7 @@ void Render::UpdateVBO(render_chunk *ren_chk, map_chunk *map_chk) {
 		ren_chk->vertices = new GLfloat[size*20];
 		ren_chk->vbo_size = size;
 	}
-	if (size > ren_chk->vbo_size) {
+	else if (size > ren_chk->vbo_size) {
 		if (ren_chk->vertices != 0) {
 			delete[] ren_chk->vertices;
 			ren_chk->vertices = 0;
@@ -550,7 +537,6 @@ void Render::UpdateVBO(render_chunk *ren_chk, map_chunk *map_chk) {
 	
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
 
-	map_chk->modified = 0;
 	ren_chk->loaded = 1;
 }
 
@@ -644,9 +630,10 @@ void Render::LoadNeededChunks(float3 pos, float3 dir, World *world) {
 		else {
 			if (map_chk->modified == 1) {
 	
+				CalculateVisible(map_chk->id, s_World);
 				UpdateVBO(ren_it->second, map_chk);
 				
-				/*for (int w=0; w<6; w++) {
+				for (int w=0; w<6; w++) {
 					int3 side = id;
 					switch (w) {
 					case PX: side.x++; break;
@@ -656,13 +643,15 @@ void Render::LoadNeededChunks(float3 pos, float3 dir, World *world) {
 					case PZ: side.z++; break;
 					case NZ: side.z--; break;
 					}
+
+					// using std::maps here might be slow...
 					render_list::iterator ren_it = r_chunks.find(side);
 					chunk_list::iterator map_it = chunks->find(side);
 					
 					if (ren_it != r_chunks.end() && map_it != chunks->end()) {
 						UpdateVBO(ren_it->second, map_it->second);
 					}
-				}*/
+				}
 				map_chk->modified = 0;
 			}
 		}
@@ -803,19 +792,15 @@ void Render::RenderChunk0(map_chunk *chk, float3 pos, float3 dir) {
 /*************************************************************************
 	Decides what to draw, how much to draw, from given perspective
 *************************************************************************/
-void Render::DrawScene(float3 pos, float3 dir, float dist, World* world) {
+void Render::DrawScene(float3 pos, float3 dir, float dist, World* world, int look, int bind) {
 
 	glPushMatrix();
 
-	glBegin(GL_QUADS);
-	glVertex3f(0, 0, 0);
-	glVertex3f(0, 100, 0);
-	glVertex3f(100, 100, 0);
-	glVertex3f(100, 0, 0);
-	glEnd();
-	gluLookAt(pos.x, pos.y, pos.z, pos.x+dir.x, pos.y+dir.y, pos.z+dir.z, 0, 0, 1);
+	if (look == 1)
+		gluLookAt(pos.x, pos.y, pos.z, pos.x+dir.x, pos.y+dir.y, pos.z+dir.z, 0, 0, 1);
 
-	glBindTexture(GL_TEXTURE_2D, s_Texture->block_texture);
+	if (bind == 1)
+		glBindTexture(GL_TEXTURE_2D, s_Texture->block_texture);
 
 	glScalef(BLOCK_LEN, BLOCK_LEN, BLOCK_LEN);
 	
@@ -911,175 +896,173 @@ void Render::GenerateVBOArray(GLfloat *vertices, Block *blocks) {
 	
 	int count = 0;
 	// now generate vertex & quads
-	for (int i=0; i<CHUNK_W; i++) {
-		for (int j=0; j<CHUNK_L; j++) {
-			for (int k=0; k<CHUNK_H; k++) {
-				int type = blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].type;
+	for_xyz(i, j, k) {
+				int type = blocks[_1D(i, j, k)].type;
 
 				if (type == Block::NUL)
 					continue;
 
-				if (blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden == 1)
+				if (blocks[_1D(i, j, k)].hidden == 1)
 					continue;
 
-				for (int w=0; w<6; w++) { // 6 faces
-					if ((blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].outside & (1<<w)) == 0) continue;
+				int w = 6;
+				while (w--) { // 6 faces
+					if ((blocks[_1D(i, j, k)].outside & (1<<w)) == 0) continue;
 					float2 coord;
 					GetTextureCoordinates(type, w, coord);
-					coord.x += 0.001f;
-					coord.y += 0.001f;
+					//coord.x += 0.001f;
+					//coord.y += 0.001f;
 					float csize = 1/16.0f;
-					csize -= 0.002f;
+					//csize -= 0.002f;
 
 					// texture coordinates are in the same order in each face except NX
+					int offset = count*20;
 					if (w != NX) {
-						vertices[count*20 + 0] = coord.x;
-						vertices[count*20 + 1] = coord.y;
-						vertices[count*20 + 5] = coord.x+csize;
-						vertices[count*20 + 6] = coord.y;
-						vertices[count*20 + 10] = coord.x+csize;
-						vertices[count*20 + 11] = coord.y+csize;
-						vertices[count*20 + 15] = coord.x;
-						vertices[count*20 + 16] = coord.y+csize;
+						vertices[offset + 0] = coord.x;
+						vertices[offset + 1] = coord.y;
+						vertices[offset + 5] = coord.x+csize;
+						vertices[offset + 6] = coord.y;
+						vertices[offset + 10] = coord.x+csize;
+						vertices[offset + 11] = coord.y+csize;
+						vertices[offset + 15] = coord.x;
+						vertices[offset + 16] = coord.y+csize;
 					}
 					else {
-						vertices[count*20 + 0] = coord.x;
-						vertices[count*20 + 1] = coord.y;
-						vertices[count*20 + 5] = coord.x;
-						vertices[count*20 + 6] = coord.y+csize;
-						vertices[count*20 + 10] = coord.x+csize;
-						vertices[count*20 + 11] = coord.y+csize;
-						vertices[count*20 + 15] = coord.x+csize;
-						vertices[count*20 + 16] = coord.y;
+						vertices[offset + 0] = coord.x;
+						vertices[offset + 1] = coord.y;
+						vertices[offset + 5] = coord.x;
+						vertices[offset + 6] = coord.y+csize;
+						vertices[offset + 10] = coord.x+csize;
+						vertices[offset + 11] = coord.y+csize;
+						vertices[offset + 15] = coord.x+csize;
+						vertices[offset + 16] = coord.y;
 					}
 					// now setup vertex coordinates of each face
 					switch (w) {
 					case PZ:
-						vertices[count*20 + 2] = 0.0f;
-						vertices[count*20 + 3] = 0.0f;
-						vertices[count*20 + 4] = 1.0f;
+						vertices[offset + 2] = 0.0f;
+						vertices[offset + 3] = 0.0f;
+						vertices[offset + 4] = 1.0f;
 
-						vertices[count*20 + 7] = 1.0f;
-						vertices[count*20 + 8] = 0.0f;
-						vertices[count*20 + 9] = 1.0f;
+						vertices[offset + 7] = 1.0f;
+						vertices[offset + 8] = 0.0f;
+						vertices[offset + 9] = 1.0f;
 
-						vertices[count*20 + 12] = 1.0f;
-						vertices[count*20 + 13] = 1.0f;
-						vertices[count*20 + 14] = 1.0f;
+						vertices[offset + 12] = 1.0f;
+						vertices[offset + 13] = 1.0f;
+						vertices[offset + 14] = 1.0f;
 
-						vertices[count*20 + 17] = 0.0f;
-						vertices[count*20 + 18] = 1.0f;
-						vertices[count*20 + 19] = 1.0f;
+						vertices[offset + 17] = 0.0f;
+						vertices[offset + 18] = 1.0f;
+						vertices[offset + 19] = 1.0f;
 						break;
 					case NZ:
-						vertices[count*20 + 2] = 1.0f;
-						vertices[count*20 + 3] = 0.0f;
-						vertices[count*20 + 4] = 0.0f;
+						vertices[offset + 2] = 1.0f;
+						vertices[offset + 3] = 0.0f;
+						vertices[offset + 4] = 0.0f;
 
-						vertices[count*20 + 7] = 0.0f;
-						vertices[count*20 + 8] = 0.0f;
-						vertices[count*20 + 9] = 0.0f;
+						vertices[offset + 7] = 0.0f;
+						vertices[offset + 8] = 0.0f;
+						vertices[offset + 9] = 0.0f;
 
-						vertices[count*20 + 12] = 0.0f;
-						vertices[count*20 + 13] = 1.0f;
-						vertices[count*20 + 14] = 0.0f;
+						vertices[offset + 12] = 0.0f;
+						vertices[offset + 13] = 1.0f;
+						vertices[offset + 14] = 0.0f;
 
-						vertices[count*20 + 17] = 1.0f;
-						vertices[count*20 + 18] = 1.0f;
-						vertices[count*20 + 19] = 0.0f;
+						vertices[offset + 17] = 1.0f;
+						vertices[offset + 18] = 1.0f;
+						vertices[offset + 19] = 0.0f;
 						break;
 					case PY:
-						vertices[count*20 + 2] = 1.0f;
-						vertices[count*20 + 3] = 1.0f;
-						vertices[count*20 + 4] = 0.0f;
+						vertices[offset + 2] = 1.0f;
+						vertices[offset + 3] = 1.0f;
+						vertices[offset + 4] = 0.0f;
 
-						vertices[count*20 + 7] = 0.0f;
-						vertices[count*20 + 8] = 1.0f;
-						vertices[count*20 + 9] = 0.0f;
+						vertices[offset + 7] = 0.0f;
+						vertices[offset + 8] = 1.0f;
+						vertices[offset + 9] = 0.0f;
 
-						vertices[count*20 + 12] = 0.0f;
-						vertices[count*20 + 13] = 1.0f;
-						vertices[count*20 + 14] = 1.0f;
+						vertices[offset + 12] = 0.0f;
+						vertices[offset + 13] = 1.0f;
+						vertices[offset + 14] = 1.0f;
 
-						vertices[count*20 + 17] = 1.0f;
-						vertices[count*20 + 18] = 1.0f;
-						vertices[count*20 + 19] = 1.0f;
+						vertices[offset + 17] = 1.0f;
+						vertices[offset + 18] = 1.0f;
+						vertices[offset + 19] = 1.0f;
 						break;
 					case NY:
-						vertices[count*20 + 2] = 0.0f;
-						vertices[count*20 + 3] = 0.0f;
-						vertices[count*20 + 4] = 0.0f;
+						vertices[offset + 2] = 0.0f;
+						vertices[offset + 3] = 0.0f;
+						vertices[offset + 4] = 0.0f;
 
-						vertices[count*20 + 7] = 1.0f;
-						vertices[count*20 + 8] = 0.0f;
-						vertices[count*20 + 9] = 0.0f;
+						vertices[offset + 7] = 1.0f;
+						vertices[offset + 8] = 0.0f;
+						vertices[offset + 9] = 0.0f;
 
-						vertices[count*20 + 12] = 1.0f;
-						vertices[count*20 + 13] = 0.0f;
-						vertices[count*20 + 14] = 1.0f;
+						vertices[offset + 12] = 1.0f;
+						vertices[offset + 13] = 0.0f;
+						vertices[offset + 14] = 1.0f;
 
-						vertices[count*20 + 17] = 0.0f;
-						vertices[count*20 + 18] = 0.0f;
-						vertices[count*20 + 19] = 1.0f;
+						vertices[offset + 17] = 0.0f;
+						vertices[offset + 18] = 0.0f;
+						vertices[offset + 19] = 1.0f;
 						break;
 					case PX:
-						vertices[count*20 + 2] = 1.0f;
-						vertices[count*20 + 3] = 0.0f;
-						vertices[count*20 + 4] = 0.0f;
+						vertices[offset + 2] = 1.0f;
+						vertices[offset + 3] = 0.0f;
+						vertices[offset + 4] = 0.0f;
 
-						vertices[count*20 + 7] = 1.0f;
-						vertices[count*20 + 8] = 1.0f;
-						vertices[count*20 + 9] = 0.0f;
+						vertices[offset + 7] = 1.0f;
+						vertices[offset + 8] = 1.0f;
+						vertices[offset + 9] = 0.0f;
 
-						vertices[count*20 + 12] = 1.0f;
-						vertices[count*20 + 13] = 1.0f;
-						vertices[count*20 + 14] = 1.0f;
+						vertices[offset + 12] = 1.0f;
+						vertices[offset + 13] = 1.0f;
+						vertices[offset + 14] = 1.0f;
 
-						vertices[count*20 + 17] = 1.0f;
-						vertices[count*20 + 18] = 0.0f;
-						vertices[count*20 + 19] = 1.0f;
+						vertices[offset + 17] = 1.0f;
+						vertices[offset + 18] = 0.0f;
+						vertices[offset + 19] = 1.0f;
 						break;
 					case NX:
-						vertices[count*20 + 2] = 0.0f;
-						vertices[count*20 + 3] = 0.0f;
-						vertices[count*20 + 4] = 0.0f;
+						vertices[offset + 2] = 0.0f;
+						vertices[offset + 3] = 0.0f;
+						vertices[offset + 4] = 0.0f;
 
-						vertices[count*20 + 7] = 0.0f;
-						vertices[count*20 + 8] = 0.0f;
-						vertices[count*20 + 9] = 1.0f;
+						vertices[offset + 7] = 0.0f;
+						vertices[offset + 8] = 0.0f;
+						vertices[offset + 9] = 1.0f;
 
-						vertices[count*20 + 12] = 0.0f;
-						vertices[count*20 + 13] = 1.0f;
-						vertices[count*20 + 14] = 1.0f;
+						vertices[offset + 12] = 0.0f;
+						vertices[offset + 13] = 1.0f;
+						vertices[offset + 14] = 1.0f;
 
-						vertices[count*20 + 17] = 0.0f;
-						vertices[count*20 + 18] = 1.0f;
-						vertices[count*20 + 19] = 0.0f;
+						vertices[offset + 17] = 0.0f;
+						vertices[offset + 18] = 1.0f;
+						vertices[offset + 19] = 0.0f;
 						break;
 					}
 
 					// translate to relative position
-					vertices[count*20 + 2] += (GLfloat)i;
-					vertices[count*20 + 3] += (GLfloat)j;
-					vertices[count*20 + 4] += (GLfloat)k;
+					vertices[offset + 2] += (GLfloat)i;
+					vertices[offset + 3] += (GLfloat)j;
+					vertices[offset + 4] += (GLfloat)k;
 
-					vertices[count*20 + 7] += (GLfloat)i;
-					vertices[count*20 + 8] += (GLfloat)j;
-					vertices[count*20 + 9] += (GLfloat)k;
+					vertices[offset + 7] += (GLfloat)i;
+					vertices[offset + 8] += (GLfloat)j;
+					vertices[offset + 9] += (GLfloat)k;
 
-					vertices[count*20 + 12] += (GLfloat)i;
-					vertices[count*20 + 13] += (GLfloat)j;
-					vertices[count*20 + 14] += (GLfloat)k;
+					vertices[offset + 12] += (GLfloat)i;
+					vertices[offset + 13] += (GLfloat)j;
+					vertices[offset + 14] += (GLfloat)k;
 
-					vertices[count*20 + 17] += (GLfloat)i;
-					vertices[count*20 + 18] += (GLfloat)j;
-					vertices[count*20 + 19] += (GLfloat)k;
+					vertices[offset + 17] += (GLfloat)i;
+					vertices[offset + 18] += (GLfloat)j;
+					vertices[offset + 19] += (GLfloat)k;
 					// next face
 					count++;
 				}
-			}
-		}
-	}
+	} end_xyz()
 }
 
 void Render::RenderChunkThread::threadLoadChunk(render_pair pair, Render::RenderChunkThread *self) {

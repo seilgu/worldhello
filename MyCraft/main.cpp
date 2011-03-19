@@ -137,78 +137,220 @@ void DrawGLScene()
 	if (keys['D'] == TRUE) {
 		m_Player->eyepos = m_Player->eyepos - crpd/2.0;
 	}
+	
+	glPushMatrix();
 
+	// shadow setup
+	glMatrixMode(GL_MODELVIEW); // just using modelview stack as a tool to calculate matrices
+
+	glLoadIdentity();
+	gluPerspective(fovY, (GLfloat)_width/(GLfloat)_height, zNear, 1000.0f);
+	glGetFloatv(GL_MODELVIEW_MATRIX, cameraProjectionMatrix);
+	float3 pos = m_Player->eyepos;
+	float3 dir = m_Player->dir;
+	glLoadIdentity();
+	gluLookAt(pos.x, pos.y, pos.z, pos.x+dir.x, pos.y+dir.y, pos.z+dir.z, 0, 0, 1);
+	glGetFloatv(GL_MODELVIEW_MATRIX, cameraViewMatrix);
+	
+	// light
+	glLoadIdentity();
+	gluPerspective(fovY, (GLfloat)_width/(GLfloat)_height, zNear, 1000.0f);
+	glGetFloatv(GL_MODELVIEW_MATRIX, lightProjectionMatrix);
+	float3 lightPosition(40*BLOCK_LEN, 40*BLOCK_LEN, 100*BLOCK_LEN);
+	float3 lightDir(0.01f, 0.0f, -1.0f);
+	glLoadIdentity();
+	gluLookAt( lightPosition.x, lightPosition.y, lightPosition.z,
+		lightPosition.x + lightDir.x, lightPosition.y + lightDir.y, lightPosition.z + lightDir.z,
+		0.0f, 1.0f, 0.0f);
+    glGetFloatv(GL_MODELVIEW_MATRIX, lightViewMatrix);
+
+	glPopMatrix();
+
+	glMatrixMode(GL_PROJECTION);
+	glLoadMatrixf(lightProjectionMatrix);
+	glMatrixMode(GL_MODELVIEW);
+	glLoadMatrixf(lightViewMatrix);
+	glViewport(0, 0, WIDTH, HEIGHT);
+
+	glShadeModel(GL_FLAT);
+	glColorMask(0, 0, 0, 0);
+
+	// draw in light perspective
 #ifndef APPLE
 	QueryPerformanceCounter(&lastTick);
 #endif
+	s_World->UpdateWorld();
+
 	s_Render->DiscardUnneededChunks(m_Player->eyepos, m_Player->dir, s_World);
 	
 	s_Render->LoadNeededChunks(m_Player->eyepos, m_Player->dir, s_World);
 
-	s_Render->DrawScene(m_Player->eyepos, m_Player->dir, 400, s_World);
+	//s_Render->DrawScene(m_Player->eyepos, m_Player->dir, 400, s_World);
+	s_Render->DrawScene(lightPosition, lightPosition + lightDir, 400, s_World, 0, 0);
 	#ifndef APPLE
 	QueryPerformanceCounter(&currTick);
 #endif
 
+	// copy texture
+	glBindTexture(GL_TEXTURE_2D, shadowTexture);
+	glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, WIDTH, HEIGHT);
+
+	
+	glShadeModel(GL_SMOOTH);
+	glColorMask(1, 1, 1, 1);
+
+	glClear(GL_DEPTH_BUFFER_BIT);
+
+	/*static MATRIX4X4 biasMatrix(0.5f, 0.0f, 0.0f, 0.0f,
+		0.0f, 0.5f, 0.0f, 0.0f,
+		0.0f, 0.0f, 0.5f, 0.0f,
+		0.5f, 0.5f, 0.5f, 1.0f);*/
+	static MATRIX4X4 biasMatrix(16.0f, 0.0f, 0.0f, 0.0f,
+		0.0f, 16.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 16.0f, 0.0f,
+		16.0f, 16.0f, 16.0f, 1.0f);
+	
+	MATRIX4X4 textureMatrix = biasMatrix*lightProjectionMatrix*lightViewMatrix;
+
+	glMatrixMode(GL_PROJECTION);
+	glLoadMatrixf(cameraProjectionMatrix);
+
+	glMatrixMode(GL_MODELVIEW);
+	glLoadMatrixf(cameraViewMatrix);
+
+	glTexGeni(GL_S, GL_TEXTURE_GEN_MODE, GL_EYE_LINEAR);
+    glTexGenfv(GL_S, GL_EYE_PLANE, textureMatrix.GetRow(0));
+    glEnable(GL_TEXTURE_GEN_S);
+
+    glTexGeni(GL_T, GL_TEXTURE_GEN_MODE, GL_EYE_LINEAR);
+    glTexGenfv(GL_T, GL_EYE_PLANE, textureMatrix.GetRow(1));
+    glEnable(GL_TEXTURE_GEN_T);
+
+    glTexGeni(GL_R, GL_TEXTURE_GEN_MODE, GL_EYE_LINEAR);
+    glTexGenfv(GL_R, GL_EYE_PLANE, textureMatrix.GetRow(2));
+    glEnable(GL_TEXTURE_GEN_R);
+
+    glTexGeni(GL_Q, GL_TEXTURE_GEN_MODE, GL_EYE_LINEAR);
+    glTexGenfv(GL_Q, GL_EYE_PLANE, textureMatrix.GetRow(3));
+    glEnable(GL_TEXTURE_GEN_Q);
+
+	
+	glBindTexture(GL_TEXTURE_2D, shadowTexture);
+	glEnable(GL_TEXTURE_2D);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE_ARB, GL_COMPARE_R_TO_TEXTURE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC_ARB, GL_LEQUAL);
+    glTexParameteri(GL_TEXTURE_2D, GL_DEPTH_TEXTURE_MODE_ARB, GL_INTENSITY);
+
+	glAlphaFunc(GL_GEQUAL, 1.0f);
+    glEnable(GL_ALPHA_TEST);
+
+
+	// draw in camera perspective
+	s_Render->DrawScene(m_Player->eyepos, m_Player->dir, 400, s_World, 0, 1);
+
+	glDisable(GL_TEXTURE_GEN_S);
+    glDisable(GL_TEXTURE_GEN_T);
+    glDisable(GL_TEXTURE_GEN_R);
+    glDisable(GL_TEXTURE_GEN_Q);
+
+    //Restore other states
+    glDisable(GL_LIGHTING);
+    glDisable(GL_ALPHA_TEST);
+
 	if (keys['K'] == TRUE) {
 		keys['K'] = FALSE;
 
-		chunk_list::iterator it = s_World->world_map.m_chunks.find(int3(0, 0, 0));
+		map_chunk *mapchk;
+		chunk_list::iterator it = s_World->world_map.m_chunks.find(int3(2, 2, 0));
 		if (it != s_World->world_map.m_chunks.end()) {
-			int3 tmp = int3(MersenneIRandom(0, 15), MersenneIRandom(0, 15), MersenneIRandom(0, 15));
-
-			(it->second)->blocks[tmp.z*(CHUNK_W*CHUNK_L) + tmp.y*(CHUNK_W) + tmp.x].type = Block::CRATE;
-			(it->second)->blocks[tmp.z*(CHUNK_W*CHUNK_L) + tmp.y*(CHUNK_W) + tmp.x].modified = 1;
-			(it->second)->blocks[tmp.z*(CHUNK_W*CHUNK_L) + tmp.y*(CHUNK_W) + tmp.x].opaque = 1;
-			(it->second)->modified = 1;
+			mapchk = it->second;
+			if (mapchk == 0 || mapchk->loaded == 0 || mapchk->failed == 1) {}
+			else {
+				for (int w=0; w<3400; w++) {
+					int3 tmp = int3(MersenneIRandom(0, 15), MersenneIRandom(0, 15), MersenneIRandom(0, 15));
+					tmp.z += 64;
+					
+					(it->second)->blocks[tmp.z*(CHUNK_W*CHUNK_L) + tmp.y*(CHUNK_W) + tmp.x].setType(Block::LAVA);
+				}
+				(it->second)->modified = 1;
+			}
 		}
 	}
 	if (keys['I'] == TRUE) {
 		keys['I'] = FALSE;
 
-		chunk_list::iterator it = s_World->world_map.m_chunks.find(int3(0, 0, 0));
+		map_chunk *mapchk;
+		chunk_list::iterator it = s_World->world_map.m_chunks.find(int3(2, 2, 0));
 		if (it != s_World->world_map.m_chunks.end()) {
 			for (int i=0; i<CHUNK_W*CHUNK_L*CHUNK_H; i++) {
-				if ( (it->second)->blocks[i].type == Block::CRATE ) {
-					(it->second)->blocks[i].type = Block::NUL;
-					(it->second)->blocks[i].opaque = 0;
-					(it->second)->blocks[i].modified = 1;
-					(it->second)->modified = 1;
-					break;
+				mapchk = it->second;
+				if (mapchk == 0 || mapchk->loaded == 0 || mapchk->failed == 1) {}
+				else {
+					if ( (it->second)->blocks[i].type == Block::LAVA ) {
+						(it->second)->blocks[i].setType(Block::NUL);
+						(it->second)->modified = 1;
+						continue;
+					}
 				}
 			}
 		}
 	}
 
-	/*chunk_list *chunks = s_World->GetRenderChunks(m_Player->eyepos, m_Player->dir);
-	chunk_list::iterator it;
-	for (it = chunks->begin(); it != chunks->end(); ++it) {
-		map_chunk *map_chk = 0;
-		map_chk = it->second;
-		if (map_chk == 0 || map_chk->failed == 1 || map_chk->loaded == 0)
-			continue;
-		if (map_chk->id.z != 0)
-			continue;
+	if (++framecount > 0) {
+		framecount = 0;
+		map_chunk *mapchk;
+		chunk_list::iterator it = s_World->world_map.m_chunks.find(int3(2, 2, 0));
+		if (it != s_World->world_map.m_chunks.end()) {
+			mapchk = it->second;
+			if (mapchk == 0 || mapchk->loaded == 0 || mapchk->failed == 1) {}
+			else {
+				Block *blocks = mapchk->blocks;
+				for_xyz(i, j, k) {
+					blocks[_1DC(i, j, k)].data = blocks[_1DC(i, j, k)].type;
+				} end_xyz()
 
-		Block *blocks = map_chk->blocks;
-		for (int i=0; i<CHUNK_W; i++) {
-			for (int j=0; j<CHUNK_L; j++) {
-				blocks[1*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].type = MersenneIRandom(9, 10);
-				if (blocks[1*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].type == 9)
-					blocks[1*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque = 0;
-				else
-					blocks[1*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque = 1;
-				blocks[1*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].modified = 1;
+				for_xyz(i, j, k) {
+					if (blocks[_1D(i, j, k)].type == Block::NUL) {
+						int cnt = 0;
+						
+						for (int w=0; w<27; w++) {
+							int n, m, l;
+							n = (w/9)%3;
+							m = (w/3)%3;
+							l = w%3;
+							if (n == 1 && m == 1 && l == 1) continue;
+							if (blocks[_1DC(i-1+n, j-1+m, k-1+l)].data == Block::LAVA) cnt++;
+						}
+
+						if (cnt > 8)
+							blocks[_1D(i, j, k)].setType(Block::LAVA);
+					}
+					else if (blocks[_1D(i, j, k)].type == Block::LAVA) {
+						int cnt = 0;
+
+						for (int w=0; w<27; w++) {
+							int n, m, l;
+							n = (w/9)%3;
+							m = (w/3)%3;
+							l = w%3;
+							if (n == 1 && m == 1 && l == 1) continue;
+							if (blocks[_1DC(i-1+n, j-1+m, k-1+l)].data == Block::NUL) cnt++;
+						}
+
+						if (cnt > 23 || cnt < 18)
+							blocks[_1D(i, j, k)].setType(Block::NUL);
+					}
+				} end_xyz()
+				
+				mapchk->modified = 1;
 			}
 		}
-		map_chk->modified = 1;
-	}*/
-	
+	}
 
 	// Debugging purpose
 	glBindTexture(GL_TEXTURE_2D, 0);
 
-	float3 pos = m_Player->eyepos;
 	int3 id((int)floor(pos.x / (BLOCK_LEN*CHUNK_W)), 
 		(int)floor(pos.y / (BLOCK_LEN*CHUNK_L)), 
 		(int)floor(pos.z / (BLOCK_LEN*CHUNK_H)));
@@ -241,10 +383,6 @@ void DrawGLScene()
 
 	//s_World->world_map.PrintChunkStatistics(buffer);
 	
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	//gluPerspective(45.0f, (GLfloat)_width/(GLfloat)_height, 1.0f, 1000.0f);
-	gluPerspective(fovY, (GLfloat)_width/(GLfloat)_height, zNear, 1000.0f);
 
 #ifdef APPLE
 	glutSwapBuffers();
@@ -321,7 +459,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 
 	s_World->LoadWorld();
 
-	m_Player->eyepos = float3(20, 20, 20);
+	m_Player->eyepos = float3(20, 20, 80);
 	m_Player->theta = PI/2;
 	m_Player->phi = PI/4;
 
@@ -351,6 +489,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 	
 	ShowCursor(true);
 
+	glDeleteTextures(1, &shadowTexture);
 	DeleteDisplayLists();
 
 	DeInitClasses();

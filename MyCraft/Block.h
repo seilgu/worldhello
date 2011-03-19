@@ -20,6 +20,7 @@ public:
 
 	unsigned short type;
 	unsigned short outside;
+	unsigned short data;
 	unsigned short modified:1;
 	unsigned short hidden:1;
 	unsigned short opaque:1;
@@ -32,6 +33,26 @@ public:
 		opaque = 0;
 		translucent = 0;
 		type = Block::NUL;
+	}
+
+	// indicates if type changed
+	unsigned short setType(unsigned short t) {
+		if (t != type) {
+			type = t;
+			modified = 1;
+			opaque = 1;
+			translucent = 0;
+
+			if (t == NUL || t == GLASS)
+				opaque = 0;
+			if (t == GLASS)
+				translucent = 1;
+
+			return 1;
+		}
+		else {
+			return 0;
+		}
 	}
 };
 

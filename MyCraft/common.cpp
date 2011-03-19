@@ -94,7 +94,7 @@ void print_chunk_filename(int3 id, char *dst) {
 }
 
 // ugly transform to[4]
-void tobase36(int from, char to[]) {
+inline void tobase36(int from, char to[]) {
 	if (from >= 0) {
 		to[0] = '+';
 	}

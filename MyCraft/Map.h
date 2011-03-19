@@ -18,8 +18,6 @@
 #include <queue>
 
 
-
-
 /**************************************************
 	Header:
 		unsigned int MAGIC = 0x1234 ; 4 bytes
@@ -117,6 +115,7 @@ public :
 	MapChunkThread *m_Thread;
 
 	void DeleteChunk(map_chunk *chk);
+	map_chunk *GetChunk(int3 id);
 	int ChunkFileExists(int3 id);
 	void LoadChunk(int3 id, int urgent);
 	void LoadNeededChunks(float3 pos, float3 dir);

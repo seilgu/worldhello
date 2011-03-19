@@ -19,6 +19,8 @@ PFNGLUNMAPBUFFERARBPROC glUnmapBufferARB;                   // unmap VBO procedu
 #include "texture.h"
 #include "Render.h"
 
+#include "Maths/Maths.h"
+
 #define WIDTH	1200
 #define HEIGHT	800
 #define PI2			6.2831853f
@@ -190,7 +192,7 @@ void CompileDisplayLists() {
 			case Block::CRATE: // Draw a crate
 				side_texture = TextureMgr::CRATE;
 				break;
-			case Block::GRASS: // Draw a grass
+			case Block::GRASS:
 				switch (w) {
 				case Render::PZ: side_texture = TextureMgr::GRASS_TOP; break;
 				case Render::NZ: side_texture = TextureMgr::GRASS_BUTTOM; break;
@@ -199,6 +201,34 @@ void CompileDisplayLists() {
 				break;
 			case Block::SOIL:
 				side_texture = TextureMgr::SOIL;
+				break;
+			case Block::STONE:
+				side_texture = TextureMgr::STONE;
+				break;
+			case Block::GOLD_MINE:
+				side_texture = TextureMgr::GOLD_MINE;
+				break;
+			case Block::COAL_MINE:
+				side_texture = TextureMgr::COAL_MINE;
+				break;
+			case Block::COAL:
+				side_texture = TextureMgr::COAL;
+				break;
+			case Block::SAND:
+				side_texture = TextureMgr::SAND;
+				break;
+			case Block::GLASS:
+				side_texture = TextureMgr::GLASS;
+				break;
+			case Block::LAVA:
+				side_texture = TextureMgr::LAVA;
+				break;
+			case Block::SNOW:
+				switch (w) {
+				case Render::PZ: side_texture = TextureMgr::SNOW_TOP; break;
+				case Render::NZ: side_texture = TextureMgr::SNOW_BUTTOM; break;
+				default: side_texture = TextureMgr::SNOW_SIDE; break;
+				}
 				break;
 			default: break;
 			}
@@ -256,6 +286,12 @@ void DeleteDisplayLists() {
 	glDeleteLists(blockDisplayList, 256);
 }
 
+GLuint shadowTexture;
+MATRIX4X4 cameraProjectionMatrix;
+MATRIX4X4 lightProjectionMatrix;
+MATRIX4X4 cameraViewMatrix;
+MATRIX4X4 lightViewMatrix;
+
 GLvoid ReSizeGLScene(GLsizei width, GLsizei height)		// Resize And Initialize The GL Window
 {
 	if (height==0)										// Prevent A Divide By Zero By
@@ -279,32 +315,33 @@ BOOL InitGL()
 {
 	glShadeModel(GL_SMOOTH);							// Enable Smooth Shading
 	glClearColor(0.0f, 0.0f, 0.0f, 0.5f);				// Black Background
-	glClearDepth(1.0f);									// Depth Buffer Setup
 	
 	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
 
-	/*GLfloat mat_specular[] = { 1.0, 1.0, 1.0, 1.0 };
-	GLfloat mat_shininess[] = { 50.0 };
-	GLfloat light_position[] = { 1.0, 1.0, 4.0, 0.0 };
 
-	glMaterialfv(GL_FRONT, GL_SPECULAR, mat_specular);
-	glMaterialfv(GL_FRONT, GL_SHININESS, mat_shininess);
-	glLightfv(GL_LIGHT0, GL_POSITION, light_position);
-
-	glEnable(GL_LIGHTING);
-	glEnable(GL_LIGHT0);
-	glEnable(GL_COLOR_MATERIAL);*/
-
+	//glEnable(GL_BLEND);
 	glEnable(GL_TEXTURE_2D);
-	glEnable(GL_BLEND);
-	//glEnable( GL_MULTISAMPLE_ARB );
-    //glEnable( GL_SAMPLE_ALPHA_TO_COVERAGE_ARB );
+	
 	//glEnable(GL_LINE_SMOOTH);
 	//glEnable(GL_POINT_SMOOTH);
 	glEnable(GL_DEPTH_TEST); // required for smooth lines!
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	//glEnable(GL_CULL_FACE);
+	glClearDepth(1.0f);									// Depth Buffer Setup
+	glDepthFunc(GL_LEQUAL);
+	glEnable(GL_DEPTH_TEST);
+	//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glEnable(GL_CULL_FACE);
 	//glCullFace(GL_BACK);
+
+	glGenTextures(1, &shadowTexture);
+	glBindTexture(GL_TEXTURE_2D, shadowTexture);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, WIDTH, HEIGHT, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, 0);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+
 #ifndef APPLE
 	BuildFont();
 

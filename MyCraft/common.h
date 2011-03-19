@@ -48,9 +48,20 @@ GLvoid glPrint(const char *fmt, ...);					// Custom GL "Print" Routine
 #define CLAMPL(i) ((i)<0 ? 0 : ((i)>=CHUNK_L ? CHUNK_L-1 : (i)))
 #define CLAMPH(i) ((i)<0 ? 0 : ((i)>=CHUNK_H ? CHUNK_H-1 : (i)))
 
+#define _1D(i, j, k) ((k)*(CHUNK_W*CHUNK_L) + (j)*(CHUNK_W) + (i))
+#define for_nxyz(i, j, k) for (int (i)=0; (i)<CHUNK_W; ++(i)) { for (int (j)=0; (j)<CHUNK_L; ++(j)) { for (int (k)=0; (k)<CHUNK_H; ++(k))
+#define for_xyz(i, j, k) { int (i) = CHUNK_W; while ((i)--) { int (j) = CHUNK_L; while ((j)--) { int (k) = CHUNK_H; while ((k)--) 
+#define end_nxyz() } }
+#define end_xyz() } } }
+
+#define _1DC(i, j, k) (CLAMPH(k)*(CHUNK_W*CHUNK_L) + CLAMPL(j)*(CHUNK_W) + CLAMPW(i))
+
+#define for_xy(i, j) for (int (i)=0; (i)<CHUNK_W; ++(i)) { for (int (j)=0; (j)<CHUNK_L; ++(j))
+#define end_xy() }
+
 struct int3;
 
-void tobase36(int from, char to[]);
+inline void tobase36(int from, char to[]);
 void print_chunk_filename(int3 id, char *dst);
 FILE *OpenFile(char *filename);
 

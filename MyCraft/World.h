@@ -24,8 +24,8 @@ public:
 	~World() {}
 
 	int LoadWorld();
-	void CalcExposure();
 	void UpdateWorld();
+	Block *GetBlocks(int3 id);
 
 	chunk_list *GetRenderChunks(float3 pos, float3 dir);
 	

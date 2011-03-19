@@ -14,14 +14,18 @@
 
 
 int TextureMgr::LoadAllTextures() {
-	block_texture = SOIL_load_OGL_texture("./Textures/terrain.png", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID, SOIL_FLAG_POWER_OF_TWO | SOIL_FLAG_INVERT_Y);
+	block_texture = SOIL_load_OGL_texture("./Textures/terrain.png", SOIL_LOAD_RGBA, SOIL_CREATE_NEW_ID, SOIL_FLAG_POWER_OF_TWO | SOIL_FLAG_INVERT_Y);
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);	// Linear Min Filter
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);	// Linear Mag Filter
 
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);	// Linear Min Filter
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);	// Linear Mag Filter
+
 	return 1;
 }
 
+// NOT USING THIS
 void TextureMgr::BuildTextureArrays() {
 	for (int i=0; i<4; i++) {
 		if (textureArray[i] != 0) continue;

@@ -6,6 +6,19 @@
 #include "File.h"
 #include "Render.h"
 
+map_chunk *Map::GetChunk(int3 id) {
+	chunk_list::iterator it = m_chunks.find(id);
+	if (it == m_chunks.end())
+		return 0;
+
+	map_chunk *mapchk = it->second;
+
+	if (mapchk->loaded == 0 || mapchk->failed == 1)
+		return 0;
+
+	return mapchk;
+}
+
 void Map::DeleteChunk(map_chunk *chk) {
 	if (chk == 0)
 		return;
@@ -231,27 +244,24 @@ void Map::MapChunkThread::threadLoadChunk(map_chunk *chk) {
 	fclose(fp);
 	
 	// blockss
-	for (int i=0; i<CHUNK_W; i++) {
-		for (int j=0; j<CHUNK_L; j++) {
-			for (int k=0; k<CHUNK_H; k++) {
-				unsigned short int t = type[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i];
-				blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].type = t;
-
-				if (t == Block::NUL || t == Block::GLASS)
-					blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque = 0;
-				else
-					blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque = 1;
-				blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].translucent = (t == Block::GLASS ? 1 : 0);
-
-				blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden = blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque;
-
-				if (blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].type != Block::NUL) {
-					blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].modified = 1;
-				}
-				blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].outside = 0;
-			}
-		}
+	int i = CHUNK_W*CHUNK_L*CHUNK_H;
+	while (i--) {
+		unsigned short int t = type[i];
+		blocks[i].setType(t);
+		blocks[i].hidden = 1;
+		blocks[i].outside = 0;
+		blocks[i].data = 0;
 	}
+
+	/*for_xyz(i, j, k) {
+		unsigned short int t = type[_1D(i, j, k)];
+
+		blocks[_1D(i, j, k)].setType(t);
+
+		blocks[_1D(i, j, k)].hidden = 1;
+
+		blocks[_1D(i, j, k)].outside = 0;
+	} end_xyz()*/
 
 	chk->modified = 1;
 	

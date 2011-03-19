@@ -113,7 +113,7 @@ public :
 	void LoadNeededChunks(float3 pos, float3 dir, World *world);
 	void DiscardUnneededChunks(float3 pos, float3 dir, World *world);
 	// Draw to screen
-	void DrawScene(float3 pos, float3 dir, float dist, World* world);
+	void DrawScene(float3 pos, float3 dir, float dist, World* world, int look, int bind);
 	void DrawScene0(float3 pos, float3 dir, float dist, World* world);
 	void RenderChunk(render_chunk *tmp, float3 pos, float3 dir);
 	void RenderChunk0(map_chunk *chk, float3 pos, float3 dir);
