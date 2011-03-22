@@ -1,3 +1,5 @@
 *~
 *.o
 MyCraft/map/*
+MyCraft/main
+terrain_generator/gen_main

@@ -2,12 +2,22 @@
 #ifndef _SHADER_H_
 #define _SHADER_H_
 
+#ifndef APPLE
 #include <Windows.h>
-#include <stdio.h>
 #include "glew.h"
-#include "wglew.h"
+#else
+#include <GL/glew.h>
+#endif
+
+#include <stdio.h>
+#include <stdlib.h>
 #pragma comment(lib, "glew32.lib")
 #pragma comment(lib, "opengl32.lib")
+#ifndef APPLE
+#include "wglew.h"
+#endif
+
+#include "common.h"
 
 class Shader {
 private:

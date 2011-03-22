@@ -2,9 +2,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include "Render.h"
 #include "Map.h"
 #include "File.h"
-#include "Render.h"
 
 map_chunk *Map::GetChunk(int3 id) {
 	chunk_list::iterator it = m_chunks.find(id);
@@ -163,6 +163,10 @@ map_chunk *Map::CreateEmptyChunk() {
 }
 
 void Map::LoadChunk(int3 id, int urgent) {
+#ifdef APPLE
+	// mac doesn't use multi-thread
+	urgent = 1;
+#endif
 	if (ChunkFileExists(id) == 0) // will need faster file checking
 		return;
 

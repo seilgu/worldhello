@@ -447,6 +447,10 @@ void Render::GetTextureCoordinates(short int type, int dir, float2 &dst) {
 }
 
 void Render::LoadChunk(render_chunk *ren_chk, map_chunk *map_chk, int urgent) {
+#ifdef APPLE
+	// mac doesn't use multi-thread
+	urgent = 1;
+#endif
 	if (urgent == 0) { // multithreading
 		render_pair pair(ren_chk, map_chk);
 		m_Thread->PushJobs(pair);

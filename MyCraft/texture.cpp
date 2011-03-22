@@ -6,11 +6,11 @@
 
 #include <stdio.h>
 
+#include "Render.h"
 #include "texture.h"
 #include "World.h"
 #include "SOIL.h"
 #include "Block.h"
-#include "Render.h"
 
 
 int TextureMgr::LoadAllTextures() {

@@ -20,13 +20,20 @@ DWORD HLStoRGB(WORD hue, WORD lum, WORD sat);
 #endif
 
 #ifdef APPLE
-//////////////////////////////////  macLayer
+//////////////////////////////////  mac layer start ////////////////////
 #include <unistd.h>
-#include <OpenGL/glu.h>
+#include <GL/glew.h>
 typedef GLushort	WORD;
 typedef GLuint		DWORD;
 typedef GLint		LONG;
 typedef GLboolean	BOOL;
+typedef long	LARGE_INTEGER;
+
+typedef struct _POINT
+{
+	int x;
+	int y;
+} POINT;
 
 #define TRUE	true
 #define FALSE	false
@@ -34,6 +41,10 @@ typedef GLboolean	BOOL;
 void MessageBox(int handler, const char *message, const char *title, int button);
 void Sleep(int millisec);
 GLvoid glPrint(const char *fmt, ...);					// Custom GL "Print" Routine
+void fopen_s(FILE **fp, char *filename, char *mode);
+void GetCursorPos(POINT *cs);
+void SetCursorPos(int x, int y);
+void Motion(int x, int y);
 #endif
 
 #ifdef _MSC_VER

@@ -10,15 +10,19 @@ PFNGLDELETEBUFFERSARBPROC glDeleteBuffersARB;               // VBO Deletion Proc
 PFNGLGETBUFFERPARAMETERIVARBPROC glGetBufferParameterivARB; // return various parameters of VBO
 PFNGLMAPBUFFERARBPROC glMapBufferARB;                       // map VBO procedure
 PFNGLUNMAPBUFFERARBPROC glUnmapBufferARB;                   // unmap VBO procedure*/
-#else
-#include <OpenGL/glext.h>
 #endif
 
 #include <math.h>
 #include "common.h"
 #include "texture.h"
 #include "Render.h"
+
+#ifndef APPLE
 #include "glew.h"
+#else
+#include <GL/glew.h>
+#endif
+
 
 
 #include "World.h"
@@ -51,13 +55,13 @@ HGLRC		hRC = 0, hRC2 = 0;
 HINSTANCE	hInstance = 0;
 BOOL		active = TRUE;
 
-BOOL		keys[256];
 
 LARGE_INTEGER lastTick, currTick;
 #endif
 double tickFreq;
 int captureMouse = 1;
 
+BOOL		keys[256];
 GLuint				box;
 GLuint				base;
 GLuint				texture[1];							// Crate.bmp texture
@@ -264,11 +268,12 @@ void DeleteDisplayLists() {
 	glDeleteLists(blockDisplayList, 256);
 }
 
+/*
 MATRIX4X4 cameraProjectionMatrix;
 MATRIX4X4 lightProjectionMatrix;
 MATRIX4X4 cameraViewMatrix;
 MATRIX4X4 lightViewMatrix;
-
+*/
 GLvoid ReSizeGLScene(GLsizei width, GLsizei height)		// Resize And Initialize The GL Window
 {
 	if (height==0)										// Prevent A Divide By Zero By

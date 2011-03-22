@@ -1,6 +1,9 @@
 #include "common.h"
+#include <stdio.h>
+#include <stdlib.h>
 
 #ifdef APPLE
+#include <GLUT/glut.h>
 void MessageBox(int handler, const char *message, const char *title, int button)
 {
 	fprintf(stderr, "Title %s:\n\t%s\n", title, message);
@@ -13,6 +16,15 @@ void Sleep(int millisec)
 GLvoid glPrint(const char *fmt, ...)					// Custom GL "Print" Routine
 {
 }
+void fopen_s(FILE **fp, char *filename, char *mode)
+{
+	(*fp) = fopen(filename, mode);
+}
+
+
+// fake functions
+
+
 #else
 WORD HueToRGB(WORD n1, WORD n2, WORD hue)
 {

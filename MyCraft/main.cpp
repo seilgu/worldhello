@@ -4,10 +4,6 @@
 	#include <commctrl.h>
 	//#include <gl\gl.h>
 	//#include <gl\glu.h>
-#else
-	#include <OpenGL/gl.h>
-	#include <OpenGL/glu.h>
-	#include <GLUT/glut.h>
 #endif
 
 #include <stdio.h>
@@ -22,7 +18,8 @@ int currX, currY;
 int prevX, prevY;
 
 #ifdef APPLE
-#include "macLayer.h"
+#include "common.h"
+#include <GLUT/glut.h>
 #endif
 
 
@@ -80,12 +77,50 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 // FPS
 
+#else
+
+POINT motion;
+void GetCursorPos(POINT *cs)
+{
+	cs->x = motion.x;
+	cs->y = motion.y;
+}
+
+void SetCursorPos(int x, int y)
+{
+	glutWarpPointer(x, y);
+	captureMouse = 0;
+}
+void Motion(int x, int y)
+{
+	motion.x = x;
+	motion.y = y;
+	captureMouse = 1;
+
+/*	int midX = WIDTH/2, midY = HEIGHT/2;
+	m_Player->phi += -(x - midX)/400.0f;
+	m_Player->theta += -(y - midY)/400.0f;
+	glutWarpPointer(midX, midY);*/
+}
+void Key(unsigned char key, int x, int y) 
+{ 
+	fprintf(stderr, "key '%c' is pressed.\n", key);
+	switch (key) { 
+		case 27: 
+			exit(0); 
+		default:
+			if (key>='a' && key <='z')
+				keys[key-'a'+'A'] = true;
+			else if (key>='A' && key <= 'Z')
+				keys[key-'A'+'a'] = true;
+	} 
+}
+
 #endif
 
 void ProcessInput() {
 	
 	// Ugly mouse handling
-#ifndef APPLE	
 	if (captureMouse) {
 		POINT cs;
 		GetCursorPos(&cs);
@@ -93,7 +128,6 @@ void ProcessInput() {
 		m_Player->theta += -(cs.y - 500)/1000.0f;
 		SetCursorPos(500, 500);
 	}
-#endif
 	if (m_Player->theta < 0.01) m_Player->theta = 0.0001f; // theta=0 leads to null crossproduct with unit_z
 	if (m_Player->theta > PI) m_Player->theta = PI-0.0001f;
 	if (m_Player->phi > 2*PI) m_Player->phi -= 2*PI;
@@ -104,9 +138,15 @@ void ProcessInput() {
 	// keyboard
 	if (keys['W'] == TRUE) {
 		m_Player->eyepos = m_Player->eyepos + m_Player->dir/0.5;
+#ifdef APPLE
+		keys['W'] = FALSE;
+#endif
 	}
 	if (keys['S'] == TRUE) {
 		m_Player->eyepos = m_Player->eyepos - m_Player->dir/0.5;
+#ifdef APPLE
+		keys['S'] = FALSE;
+#endif
 	}
 	float3 unit_z(0, 0, 1);
 	float3 crpd = cross_prod(unit_z, m_Player->dir);
@@ -114,19 +154,31 @@ void ProcessInput() {
 	// strafe
 	if (keys['A'] == TRUE) {
 		m_Player->eyepos = m_Player->eyepos + crpd/2.0;
+#ifdef APPLE
+		keys['A'] = FALSE;
+#endif
 	}
 	if (keys['D'] == TRUE) {
 		m_Player->eyepos = m_Player->eyepos - crpd/2.0;
+#ifdef APPLE
+		keys['D'] = FALSE;
+#endif
 	}
 
 	// shaders	
 	if (keys['V'] == TRUE) {
 		keys['V'] = FALSE;
 		s_Shader->UseProgram(Shader::BLUE);
+#ifdef APPLE
+		keys['V'] = FALSE;
+#endif
 	}
 	if (keys['F'] == TRUE) {
 		keys['F'] = FALSE;
 		s_Shader->UseProgram(Shader::NUL);
+#ifdef APPLE
+		keys['F'] = FALSE;
+#endif
 	}
 }
 
@@ -200,9 +252,9 @@ void DrawGLScene()
 
 #ifndef APPLE
 	QueryPerformanceCounter(&currTick);
+	PrintDebugMessage();
 #endif
 
-	PrintDebugMessage();
 	
 #ifdef APPLE
 	glutSwapBuffers();
@@ -312,13 +364,14 @@ int main(int argc, char** argv)
 	
 	/************* Game things ***************/
 	ReSizeGLScene(WIDTH, HEIGHT);
-	InitClasses();
+	glewInit();
 	
 	/************* GL things ***************/
 	if (!InitGL()) {
 		fprintf( stderr, "Init GL failed. End.\n");
 		exit(0);
 	}
+	InitClasses();
 	// load textures
 	s_Texture->LoadAllTextures();
 
