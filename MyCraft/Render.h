@@ -5,9 +5,10 @@
 #ifndef APPLE
 
 #include <Windows.h>
-#include <gl\gl.h>
-#include <gl\glu.h>
-#include "glext.h"
+//#include <gl\gl.h>
+//#include <gl\glu.h>
+//#include "glext.h"
+#include "glew.h"
 
 #else
 
@@ -23,14 +24,14 @@
 #include <map>
 
 #ifndef APPLE
-extern PFNGLGENBUFFERSARBPROC glGenBuffersARB;                     // VBO Name Generation Procedure
+/*extern PFNGLGENBUFFERSARBPROC glGenBuffersARB;                     // VBO Name Generation Procedure
 extern PFNGLBINDBUFFERARBPROC glBindBufferARB;                     // VBO Bind Procedure
 extern PFNGLBUFFERDATAARBPROC glBufferDataARB;                     // VBO Data Loading Procedure
 extern PFNGLBUFFERSUBDATAARBPROC glBufferSubDataARB;               // VBO Sub Data Loading Procedure
 extern PFNGLDELETEBUFFERSARBPROC glDeleteBuffersARB;               // VBO Deletion Procedure
 extern PFNGLGETBUFFERPARAMETERIVARBPROC glGetBufferParameterivARB; // return various parameters of VBO
 extern PFNGLMAPBUFFERARBPROC glMapBufferARB;                       // map VBO procedure
-extern PFNGLUNMAPBUFFERARBPROC glUnmapBufferARB;                   // unmap VBO procedure
+extern PFNGLUNMAPBUFFERARBPROC glUnmapBufferARB;                   // unmap VBO procedure*/
 
 extern HDC hDC;
 extern HGLRC hRC2;
@@ -89,7 +90,7 @@ public :
 	void BeginWorkThread() {
 		m_Thread = 0;
 		m_Thread = new RenderChunkThread(this);
-		m_Thread->Start();              // Doesn't WORK
+		m_Thread->Start();
 	}
 
 	void KillWorkThread() {

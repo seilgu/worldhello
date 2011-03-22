@@ -1,6 +1,6 @@
 #ifndef APPLE
 
-#include "glext.h"
+/*#include "glext.h"
 
 PFNGLGENBUFFERSARBPROC glGenBuffersARB;                     // VBO Name Generation Procedure
 PFNGLBINDBUFFERARBPROC glBindBufferARB;                     // VBO Bind Procedure
@@ -9,7 +9,7 @@ PFNGLBUFFERSUBDATAARBPROC glBufferSubDataARB;               // VBO Sub Data Load
 PFNGLDELETEBUFFERSARBPROC glDeleteBuffersARB;               // VBO Deletion Procedure
 PFNGLGETBUFFERPARAMETERIVARBPROC glGetBufferParameterivARB; // return various parameters of VBO
 PFNGLMAPBUFFERARBPROC glMapBufferARB;                       // map VBO procedure
-PFNGLUNMAPBUFFERARBPROC glUnmapBufferARB;                   // unmap VBO procedure
+PFNGLUNMAPBUFFERARBPROC glUnmapBufferARB;                   // unmap VBO procedure*/
 #else
 #include <OpenGL/glext.h>
 #endif
@@ -18,11 +18,23 @@ PFNGLUNMAPBUFFERARBPROC glUnmapBufferARB;                   // unmap VBO procedu
 #include "common.h"
 #include "texture.h"
 #include "Render.h"
+#include "glew.h"
+
+
+#include "World.h"
+#include "Player.h"
+#include "File.h"
+#include "Debug.h"
+#include "Shader.h"
+
+#ifndef APPLE
+#include "wglew.h"
+#endif
 
 #include "Maths/Maths.h"
 
-#define WIDTH	1200
-#define HEIGHT	800
+#define WIDTH	1600
+#define HEIGHT	1000
 #define PI2			6.2831853f
 
 float fovY = 45.0f;
@@ -67,8 +79,7 @@ BOOL CALLBACK wp(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 
 
-void setVSync(int interval=1)
-{
+void setVSync(int interval=1) {
 	typedef BOOL (APIENTRY *PFNWGLSWAPINTERVALFARPROC)( int );
 	PFNWGLSWAPINTERVALFARPROC wglSwapIntervalEXT = 0;
 	const char *extensions = (char *)glGetString( GL_EXTENSIONS );
@@ -85,10 +96,8 @@ void setVSync(int interval=1)
 	}
 }
 
-GLvoid BuildFont(GLvoid)								// Build Our Bitmap Font
-{
+GLvoid BuildFont(GLvoid) {								// Build Our Bitmap Font
 	HFONT	font;										// Windows Font ID
-
 	base = glGenLists(256);								// Storage For 256 Characters
 
 	font = CreateFont(	-12,							// Height Of Font
@@ -118,13 +127,11 @@ GLvoid BuildFont(GLvoid)								// Build Our Bitmap Font
 		gmf);							// Address Of Buffer To Recieve Data
 }
 
-GLvoid KillFont(GLvoid)									// Delete The Font
-{
+GLvoid KillFont(GLvoid)	{								// Delete The Font
 	glDeleteLists(base, 256);								// Delete All 256 Characters
 }
 
-GLvoid glPrint(const char *fmt, ...)					// Custom GL "Print" Routine
-{
+GLvoid glPrint(const char *fmt, ...) {					// Custom GL "Print" Routine
 	float		length=0;								// Used To Find The Length Of The Text
 	char		text[256];								// Holds Our String
 	va_list		ap;										// Pointer To List Of Arguments
@@ -136,8 +143,7 @@ GLvoid glPrint(const char *fmt, ...)					// Custom GL "Print" Routine
 	vsprintf_s(text, sizeof(text), fmt, ap);
 	va_end(ap);											// Results Are Stored In Text
 
-	for (unsigned int loops=0;loops<(strlen(text));loops++)	// Loop To Find Text Length
-	{
+	for (unsigned int loops=0;loops<(strlen(text));loops++)	{// Loop To Find Text Length
 		length+=gmf[text[loops]].gmfCellIncX;			// Increase Length By Each Characters Width
 	}
 
@@ -147,34 +153,6 @@ GLvoid glPrint(const char *fmt, ...)					// Custom GL "Print" Routine
 	glPopAttrib();										// Pops The Display List Bits
 }
 
-bool CheckVBOSupport() {
-	glGenBuffersARB = 0;                     // VBO Name Generation Procedure
-	glBindBufferARB = 0;                     // VBO Bind Procedure
-	glBufferDataARB = 0;                     // VBO Data Loading Procedure
-	glBufferSubDataARB = 0;               // VBO Sub Data Loading Procedure
-	glDeleteBuffersARB = 0;               // VBO Deletion Procedure
-	glGetBufferParameterivARB = 0; // return various parameters of VBO
-	glMapBufferARB = 0;                       // map VBO procedure
-	glUnmapBufferARB = 0;                   // unmap VBO procedure
-		
-	glGenBuffersARB = (PFNGLGENBUFFERSARBPROC)wglGetProcAddress("glGenBuffersARB");
-	glBindBufferARB = (PFNGLBINDBUFFERARBPROC)wglGetProcAddress("glBindBufferARB");
-	glBufferDataARB = (PFNGLBUFFERDATAARBPROC)wglGetProcAddress("glBufferDataARB");
-	glBufferSubDataARB = (PFNGLBUFFERSUBDATAARBPROC)wglGetProcAddress("glBufferSubDataARB");
-	glDeleteBuffersARB = (PFNGLDELETEBUFFERSARBPROC)wglGetProcAddress("glDeleteBuffersARB");
-	glGetBufferParameterivARB = (PFNGLGETBUFFERPARAMETERIVARBPROC)wglGetProcAddress("glGetBufferParameterivARB");
-	glMapBufferARB = (PFNGLMAPBUFFERARBPROC)wglGetProcAddress("glMapBufferARB");
-	glUnmapBufferARB = (PFNGLUNMAPBUFFERARBPROC)wglGetProcAddress("glUnmapBufferARB");
-	
-	if(glGenBuffersARB && glBindBufferARB && glBufferDataARB && glBufferSubDataARB &&
-           glMapBufferARB && glUnmapBufferARB && glDeleteBuffersARB && glGetBufferParameterivARB)
-	{
-		return true;
-	} else {
-		MessageBox(0, "VBO not supported", "haha", 0);
-		return false;
-    }
-}
 #endif
 
 GLuint blockDisplayList;
@@ -286,7 +264,6 @@ void DeleteDisplayLists() {
 	glDeleteLists(blockDisplayList, 256);
 }
 
-GLuint shadowTexture;
 MATRIX4X4 cameraProjectionMatrix;
 MATRIX4X4 lightProjectionMatrix;
 MATRIX4X4 cameraViewMatrix;
@@ -302,14 +279,11 @@ GLvoid ReSizeGLScene(GLsizei width, GLsizei height)		// Resize And Initialize Th
 	glMatrixMode(GL_PROJECTION);						// Select The Projection Matrix
 	glLoadIdentity();
 
-	//glOrtho(0, width, 0, height, -1, 1);
-	//gluPerspective(45.0f, (GLfloat)width/(GLfloat)height, 10.0f, 1000.0f);
 	gluPerspective(fovY, (GLfloat)width/(GLfloat)height, zNear, 1000.0f);
 
 	glMatrixMode(GL_MODELVIEW);							// Select The Modelview Matrix
 	glLoadIdentity();									// Reset The Modelview Matrix
 }
-
 
 BOOL InitGL()
 {
@@ -318,8 +292,7 @@ BOOL InitGL()
 	
 	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
 
-
-	//glEnable(GL_BLEND);
+	glEnable(GL_BLEND);
 	glEnable(GL_TEXTURE_2D);
 	
 	//glEnable(GL_LINE_SMOOTH);
@@ -329,18 +302,8 @@ BOOL InitGL()
 	glDepthFunc(GL_LEQUAL);
 	glEnable(GL_DEPTH_TEST);
 	//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glEnable(GL_CULL_FACE);
+	//glEnable(GL_CULL_FACE);
 	//glCullFace(GL_BACK);
-
-	glGenTextures(1, &shadowTexture);
-	glBindTexture(GL_TEXTURE_2D, shadowTexture);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, WIDTH, HEIGHT, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, 0);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-	glBindTexture(GL_TEXTURE_2D, 0);
-
 
 #ifndef APPLE
 	BuildFont();
@@ -350,6 +313,7 @@ BOOL InitGL()
 
 	return TRUE;
 }
+
 #ifndef APPLE
 BOOL CreateGLWindow()
 {
@@ -435,26 +399,83 @@ BOOL CreateGLWindow()
 		return FALSE;
 	}
 
-	if (!(hRC = wglCreateContext(hDC)))
+	//// modified : try to create opengl 3.x compatible context
+	HGLRC tmpRC;
+	if (!(tmpRC = wglCreateContext(hDC)))
 	{
 		MessageBox(0, "Fail to create context", "ERROR", MB_OK);
 		return FALSE;
 	}
 
-	if (!(hRC2 = wglCreateContext(hDC)))
-	{
-		MessageBox(0, "Fail to create context", "ERROR", MB_OK);
-		return FALSE;
-	}
-
-	wglShareLists(hRC, hRC2);
-
-	if (!wglMakeCurrent(hDC, hRC))
+	if (!wglMakeCurrent(hDC, tmpRC))
 	{
 		MessageBox(0, "Fail to make current", "ERROR", MB_OK);
 		return FALSE;
 	}
 
+	int attributes[] = {
+		WGL_CONTEXT_MAJOR_VERSION_ARB, 3, 
+		WGL_CONTEXT_MINOR_VERSION_ARB, 2, 
+		WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB, 
+		0 
+	};
+
+	if (wglewIsSupported("WGL_ARB_create_context") == 1) { // If the OpenGL 3.x context creation extension is available
+		PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB;
+		wglCreateContextAttribsARB = (PFNWGLCREATECONTEXTATTRIBSARBPROC) wglGetProcAddress("wglCreateContextAttribsARB");
+		hRC = wglCreateContextAttribsARB(hDC, NULL, attributes); // Create and OpenGL 3.x context based on the given attributes
+		wglMakeCurrent(NULL, NULL); // Remove the temporary context from being active
+		wglDeleteContext(tmpRC); // Delete the temporary OpenGL 2.1 context
+		wglMakeCurrent(hDC, hRC); // Make our OpenGL 3.0 context current
+	}
+	else {
+		hRC = tmpRC; // If we didn't have support for OpenGL 3.x and up, use the OpenGL 2.1 context
+	}
+	////
+
+	wglShareLists(hRC, hRC2);
+
 	return TRUE;
 }
 #endif
+
+
+// Game things
+
+Render *s_Render;
+World *s_World;
+TextureMgr *s_Texture;
+Player *m_Player;
+FileMgr *s_File;
+Shader *s_Shader;
+
+void InitClasses() {
+	s_File = new FileMgr();
+	s_Render = new Render(supportVBO);
+	s_World = new World();
+	s_Texture = new TextureMgr();
+	m_Player = new Player();
+	s_Shader = new Shader();
+}
+
+void DeInitClasses() {
+	if (s_Render != 0)
+		delete s_Render;
+	if (s_World != 0)
+		delete s_World;
+	if (s_Texture != 0)
+		delete s_Texture;
+	if (m_Player != 0)
+		delete m_Player;
+	if (s_File != 0)
+		delete s_File;
+	if (s_Shader != 0)
+		delete s_Shader;
+
+	s_Render = 0;
+	s_World = 0;
+	s_Texture = 0;
+	m_Player = 0;
+	s_File = 0;
+	s_Shader = 0;
+}

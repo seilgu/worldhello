@@ -4,7 +4,6 @@
 
 #include "common.h"
 #include "Map.h"
-//#include "Block.h"
 
 /*************************************************************************
 	A singleton class that handles Objects in the World.

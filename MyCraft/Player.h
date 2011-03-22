@@ -19,6 +19,9 @@ public:
 
 	rect3f body_rect;
 
+	void MoveForward(float dt);
+	void MoveBackward(float dt);
+	void Strafe(float dt, int side);
 };
 
 #endif

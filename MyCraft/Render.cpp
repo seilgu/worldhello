@@ -721,8 +721,6 @@ void Render::RenderChunk(render_chunk *tmp, float3 pos, float3 dir) {
 extern float fovY;
 extern GLuint blockDisplayList;
 void Render::RenderChunk0(map_chunk *chk, float3 pos, float3 dir) {
-
-
 	float3 rel;
 	
 	// do whole chunk's culling

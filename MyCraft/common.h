@@ -86,6 +86,10 @@ struct float2 {
 	float2(float xx, float yy) : x(xx), y(yy) {}
 };
 
+struct quad2f {
+	float2 vertices[4];
+};
+
 struct rect3f {
 	float x, y, z;
 	float w, l, h;

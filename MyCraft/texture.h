@@ -5,8 +5,9 @@
 #ifndef APPLE
 
 #include <Windows.h>
-#include <GL\GL.h>
-#include <GL\GLU.h>
+//#include <GL\GL.h>
+//#include <GL\GLU.h>
+#include "glew.h"
 
 #else
 
