@@ -25,6 +25,8 @@ public:
 	int LoadWorld();
 	void UpdateWorld();
 	Block *GetBlocks(int3 id);
+	void AddBlock(int3 chkId, int3 offset, int type);
+	void RemoveBlock(int3 chkId, int3 offset);
 
 	chunk_list *GetRenderChunks(float3 pos, float3 dir);
 	

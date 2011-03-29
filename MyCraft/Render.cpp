@@ -102,6 +102,103 @@ void Render::DeleteChunk(render_chunk *chk) {
 }
 
 extern LARGE_INTEGER lastTick, currTick;
+int Render::FindBlock(float3 pos, float3 dir, int depth, int3 &id, int3 &offset, int &side) {
+	// Get pos's chunk id
+	int3 chkId((int)floor(pos.x / (BLOCK_LEN*CHUNK_W)), 
+		(int)floor(pos.y / (BLOCK_LEN*CHUNK_L)), 
+		(int)floor(pos.z / (BLOCK_LEN*CHUNK_H)));
+
+	map_chunk *mapchk = s_World->world_map.GetChunk(chkId);
+
+	if (mapchk == 0)
+		return 0;
+
+	Block *blocks = mapchk->blocks;
+
+	int3 step(dir.x > 0 ? 1 : -1, 
+		dir.y > 0 ? 1 : -1, 
+		dir.z > 0 ? 1 : -1);
+
+	float3 raypos(pos.x - chkId.x*BLOCK_LEN*CHUNK_W, pos.y - chkId.y*BLOCK_LEN*CHUNK_L, pos.z - chkId.z*BLOCK_LEN*CHUNK_H);
+
+	int3 voxpos( (int)floor(pos.x/BLOCK_LEN) - chkId.x*CHUNK_W, 
+		(int)floor(pos.y/BLOCK_LEN) - chkId.y*CHUNK_L, 
+		(int)floor(pos.z/BLOCK_LEN) - chkId.z*CHUNK_H);
+
+	int3 next(voxpos.x + (step.x > 0 ? 1 : 0), voxpos.y + (step.y > 0 ? 1 : 0), voxpos.z + (step.z > 0 ? 1 : 0));
+
+	// Beware that dir might be zero !!
+	float3 tMax( (next.x*BLOCK_LEN - raypos.x)/dir.x, 
+		(next.y*BLOCK_LEN - raypos.y)/dir.y, 
+		(next.z*BLOCK_LEN - raypos.z)/dir.z );
+
+	float3 tDelta( step.x / dir.x, 
+		step.y / dir.y, 
+		step.z / dir.z );
+
+	while (depth--) {
+
+		if (INVALID(voxpos.x, voxpos.y, voxpos.z)) {
+
+			if (voxpos.x < 0) {
+				voxpos.x = CHUNK_W - 1;
+				chkId.x--;
+			}
+			else if (voxpos.x >= CHUNK_W) {
+				voxpos.x = 0;
+				chkId.x++;
+			}
+			else if (voxpos.y < 0) {
+				voxpos.y = CHUNK_L - 1;
+				chkId.y--;
+			}
+			else if (voxpos.y >= CHUNK_L) {
+				voxpos.y = 0;
+				chkId.y++;
+			}
+			else if (voxpos.z < 0) {
+				voxpos.z = CHUNK_H - 1;
+				chkId.z--;
+			}
+			else {
+				voxpos.z = 0;
+				chkId.z++;
+			}
+
+			mapchk = s_World->world_map.GetChunk(chkId);
+			if (mapchk == 0)
+				return 0;
+
+			blocks = mapchk->blocks;
+		}
+
+		if (blocks[_1D(voxpos.x, voxpos.y, voxpos.z)].type != Block::NUL) {
+			id = chkId;
+			offset = voxpos;
+			return 1;
+		}
+
+
+		if (tMax.x < tMax.y && tMax.x < tMax.z) {
+			voxpos.x += step.x;
+			tMax.x += tDelta.x;
+			side = (step.x > 0 ? NX : PX);
+		}
+		else if (tMax.y < tMax.z) {
+			voxpos.y += step.y;
+			tMax.y += tDelta.y;
+			side = (step.y > 0 ? NY : PY);
+		}
+		else {
+			voxpos.z += step.z;
+			tMax.z += tDelta.z;
+			side = (step.z > 0 ? NZ : PZ);
+		}
+	}
+
+	return 0;
+}
+
 void Render::CalculateVisible(int3 id, World* world) {
 	chunk_list *m_chunks = s_World->world_map.GetChunkList();
 	chunk_list::iterator it = m_chunks->find(id);
@@ -118,7 +215,7 @@ void Render::CalculateVisible(int3 id, World* world) {
 	
 	// cleaning and setup
 	for (int i=0; i<CHUNK_W*CHUNK_L*CHUNK_H; i++) {
-		if (blocks[i].modified == 1) {
+		//if (blocks[i].modified == 1) {
 			// for first and second pass
 			if (blocks[i].opaque == 1 || blocks[i].translucent == 1) // hide all touchable
 				blocks[i].hidden = 1;
@@ -126,7 +223,7 @@ void Render::CalculateVisible(int3 id, World* world) {
 				blocks[i].hidden = 0;
 
 			blocks[i].outside = 0; // clean face flag
-		}
+		//}
 	}
 
 	// first pass, find solids
@@ -289,6 +386,7 @@ void Render::CheckChunkSide(int3 id, int dir) {
 		return;
 	}
 
+	// DOESN'T COVER REFILLED LAND !!
 	// not edge
 	Block *aux = map_side->blocks;
 	switch (dir) {

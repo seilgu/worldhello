@@ -2,8 +2,6 @@
 	#include <windows.h>
 	#include <process.h>
 	#include <commctrl.h>
-	//#include <gl\gl.h>
-	//#include <gl\glu.h>
 #endif
 
 #include <stdio.h>
@@ -44,9 +42,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		return 0;
 	case WM_MOUSEMOVE:
 		return 0;
-	case WM_LBUTTONDOWN:
+	case WM_LBUTTONDOWN: mouseDown = true;
 		return 0;
-	case WM_LBUTTONUP:
+	case WM_LBUTTONUP: mouseDown = false;
 		return 0;
 	case WM_KEYDOWN:
 		switch (wParam) {
@@ -57,6 +55,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 				ShowCursor(true);
 			}
 			break;
+		case VK_CONTROL:
+			controlKey = true;
+			break;
 		default: keys[wParam] = TRUE;
 			break;
 		}
@@ -64,6 +65,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	case WM_KEYUP:
 		switch (wParam) {
 		case VK_ESCAPE: break;
+		case VK_CONTROL:
+			controlKey = false;
+			break;
 		default: keys[wParam] = FALSE; break;
 		}
 		return 0;
@@ -128,6 +132,57 @@ void ProcessInput() {
 		m_Player->theta += -(cs.y - 500)/1000.0f;
 		SetCursorPos(500, 500);
 	}
+
+	if (mouseDown == true) {
+		//mouseDown = false;
+
+		int3 tmpId;
+		int3 tmpOffset;
+		int tmpSide;
+		if (s_Render->FindBlock(m_Player->eyepos, m_Player->dir, 128, tmpId, tmpOffset, tmpSide) == 1) {
+			if (controlKey == true) {
+				switch (tmpSide) {
+				case Render::PX: tmpOffset.x += 1; break;
+				case Render::NX: tmpOffset.x -= 1; break;
+				case Render::PY: tmpOffset.y += 1; break;
+				case Render::NY: tmpOffset.y -= 1; break;
+				case Render::PZ: tmpOffset.z += 1; break;
+				case Render::NZ: tmpOffset.z -= 1; break;
+				}
+				if (tmpOffset.x >= CHUNK_W) {
+					tmpOffset.x = 0;
+					tmpId.x++;
+				}
+				else if (tmpOffset.x < 0) {
+					tmpOffset.x = CHUNK_W-1;
+					tmpId.x--;
+				}
+				if (tmpOffset.y >= CHUNK_L) {
+					tmpOffset.y = 0;
+					tmpId.y++;
+				}
+				else if (tmpOffset.y < 0) {
+					tmpOffset.y = CHUNK_L-1;
+					tmpId.y--;
+				}
+				if (tmpOffset.z >= CHUNK_H) {
+					tmpOffset.z = 0;
+					tmpId.z++;
+				}
+				else if (tmpOffset.z < 0) {
+					tmpOffset.z = CHUNK_H-1;
+					tmpId.z--;
+				}
+
+				s_World->AddBlock(tmpId, tmpOffset, Block::GRASS);
+			}
+			else {
+				s_World->RemoveBlock(tmpId, tmpOffset);
+			}
+		}
+
+	}
+
 	if (m_Player->theta < 0.01) m_Player->theta = 0.0001f; // theta=0 leads to null crossproduct with unit_z
 	if (m_Player->theta > PI) m_Player->theta = PI-0.0001f;
 	if (m_Player->phi > 2*PI) m_Player->phi -= 2*PI;
@@ -234,15 +289,14 @@ void DrawGLScene()
 	//float3 lightPosition(60*BLOCK_LEN, -60*BLOCK_LEN, 110*BLOCK_LEN);
 	//float3 lightDir(0.001f, 0.001f, -1.0f);
 
+	glBlendFunc(GL_ONE, GL_ZERO);
+	glEnable(GL_TEXTURE_2D);
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 	gluPerspective(fovY, (GLfloat)_width/(GLfloat)_height, zNear, 1000.0f);
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 
-#ifndef APPLE
-	QueryPerformanceCounter(&lastTick);
-#endif
 
 	// frame update
 	s_World->UpdateWorld();
@@ -250,10 +304,54 @@ void DrawGLScene()
 	s_Render->LoadNeededChunks(m_Player->eyepos, m_Player->dir, s_World);
 	s_Render->DrawScene(m_Player->eyepos, m_Player->dir, 400, s_World, 1, 1);
 
+	
+#ifndef APPLE
+	QueryPerformanceCounter(&lastTick);
+#endif
+	for (int i=0; i<10000; i++) {
+		int3 tmpId;
+		int3 tmpOffset;
+		int tmpType;
+		s_Render->FindBlock(m_Player->eyepos, m_Player->dir, 128, tmpId, tmpOffset, tmpType);
+		//map_chunk *mapchk = s_World->world_map.GetChunk(int3(0, 1, 2));
+		//mapchk = s_World->world_map.GetChunk(int3(1, 1, 2));
+	}
 #ifndef APPLE
 	QueryPerformanceCounter(&currTick);
 	PrintDebugMessage();
 #endif
+
+	// Draw Red Dot
+	glPointSize(3.0f);
+	glColor3f(1, 0, 0);
+	glBegin(GL_POINTS);
+		glVertex3f(0, 0, 0);
+	glEnd();
+	glColor3f(1, 1, 1);
+
+	/*int3 tmpId;
+	int3 tmpOffset;
+	int tmpType;
+	if (s_Render->FindBlock(m_Player->eyepos, m_Player->dir, 128, tmpId, tmpOffset, tmpType) == 1) {
+		glPushMatrix();
+
+		glMatrixMode(GL_PROJECTION);
+		glLoadIdentity();
+		glMatrixMode(GL_MODELVIEW);
+		glLoadIdentity();
+		glOrtho(0, _width, 0, _height, -1, 1);
+
+		glScalef(20, 20, 1);
+
+		glPushMatrix();
+			glTranslatef(0, 4, 0);
+			glPrint("ID: (%d,%d,%d), Offset: (%d,%d,%d), Type: %d", tmpId.x, tmpId.y, tmpId.z, tmpOffset.x, tmpOffset.y, tmpOffset.z, tmpType);
+		glPopMatrix();
+
+		glPopMatrix();
+
+	}*/
+
 
 	
 #ifdef APPLE

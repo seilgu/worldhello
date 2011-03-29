@@ -77,7 +77,7 @@ void Map::MarkUnneededChunks(float3 pos, float3 dir) {
 	for (it = m_chunks.begin(); it != m_chunks.end(); ++it) {
 		int3 idchk = (*it).first;
 		map_chunk *tmp = (*it).second;
-		if (abs(idchk.x - id.x) > 14 || abs(idchk.y - id.y) > 14 || abs(idchk.z - id.z) > 1) {
+		if (abs(idchk.x - id.x) > 20 || abs(idchk.y - id.y) > 20 || abs(idchk.z - id.z) > 3) {
 			if (tmp->loaded == 1 || tmp->failed == 1)
 				tmp->unneeded = 1;
 		}
@@ -119,9 +119,9 @@ void Map::LoadNeededChunks(float3 pos, float3 dir) {
 	int3 tmp;
 	
 	// these are the needed 5x5 chunks around the player
-	for (int i=-14; i<=14; i++) {
-		for (int j=-14; j<=14; j++) {
-			for (int k=-1; k<=1; k++) {
+	for (int i=-20; i<=20; i++) {
+		for (int j=-20; j<=20; j++) {
+			for (int k=-3; k<=3; k++) {
 				// setup chunk ids
 				tmp.x = id.x + i;
 				tmp.y = id.y + j;

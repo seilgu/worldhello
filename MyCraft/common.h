@@ -67,6 +67,14 @@ void Motion(int x, int y);
 
 #define _1DC(i, j, k) (CLAMPH(k)*(CHUNK_W*CHUNK_L) + CLAMPL(j)*(CHUNK_W) + CLAMPW(i))
 
+#define VALID(i, j, k) ( (i) >= 0 && (i) < CHUNK_W && (j) >= 0 && (j) < CHUNK_L && (k) >= 0 && (k) < CHUNK_H )
+#define INVALID(i, j, k) ( (i) < 0 || (i) >= CHUNK_W || (j) < 0 || (j) >= CHUNK_L || (k) < 0 || (k) >= CHUNK_H )
+
+#define min2(i, j) ( (i) < (j) ? (i) : (j) )
+#define max2(i, j) ( (i) < (j) ? (j) : (i) )
+#define min3(i, j, k) min2( (i), min2( (j), (k) ) )
+#define max3(i, j, k) max2( (i), max2( (j), (k) ) )
+
 #define for_xy(i, j) for (int (i)=0; (i)<CHUNK_W; ++(i)) { for (int (j)=0; (j)<CHUNK_L; ++(j))
 #define end_xy() }
 

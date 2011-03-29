@@ -61,6 +61,8 @@ LARGE_INTEGER lastTick, currTick;
 double tickFreq;
 int captureMouse = 1;
 
+bool		mouseDown = false;
+bool		controlKey = false;
 BOOL		keys[256];
 GLuint				box;
 GLuint				base;
@@ -137,7 +139,7 @@ GLvoid KillFont(GLvoid)	{								// Delete The Font
 
 GLvoid glPrint(const char *fmt, ...) {					// Custom GL "Print" Routine
 	float		length=0;								// Used To Find The Length Of The Text
-	char		text[256];								// Holds Our String
+	char		text[512];								// Holds Our String
 	va_list		ap;										// Pointer To List Of Arguments
 
 	if (fmt == NULL)									// If There's No Text

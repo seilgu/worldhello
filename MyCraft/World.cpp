@@ -14,6 +14,24 @@ chunk_list *World::GetRenderChunks(float3 pos, float3 dir) {
 	return world_map.GetChunkList();
 }
 
+void World::AddBlock(int3 chkId, int3 offset, int type) {
+	map_chunk *mapchk = world_map.GetChunk(chkId);
+	
+	if (mapchk != 0) {
+		mapchk->blocks[_1D(offset.x, offset.y, offset.z)].setType(type);
+		mapchk->modified = 1;
+	}
+}
+
+void World::RemoveBlock(int3 chkId, int3 offset) {
+	map_chunk *mapchk = world_map.GetChunk(chkId);
+	
+	if (mapchk != 0) {
+		mapchk->blocks[_1D(offset.x, offset.y, offset.z)].setType(Block::NUL);
+		mapchk->modified = 1;
+	}
+}
+
 void World::UpdateWorld() {
 }
 

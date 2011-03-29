@@ -97,7 +97,7 @@ float noise2(int x, int y) {
 	int n;
     n = x + y * 57;
     n = (n<<13) ^ n;
-    return ( 1.0 - ( (n * (n * n * 15731 + 789221) + 1376312589) & 0x7fffffff) / 1073741824.0); 
+    return (float)( 1.0 - ( (n * (n * n * 15731 + 789221) + 1376312589) & 0x7fffffff) / 1073741824.0); 
 }
 
 float smooth_noise2(int x, int y) {
@@ -109,8 +109,8 @@ float smooth_noise2(int x, int y) {
 }
 
 float Interpolate(float a, float b, float x) {
-	float ft = x * 3.1415927;
-	float f = (1 - cos(ft)) * 0.5;
+	float ft = x * 3.1415927f;
+	float f = (1 - cos(ft)) * 0.5f;
 	
 	return a*(1-f) + b*f;
 }
@@ -140,7 +140,7 @@ float Perlin2D(float x, float y) {
 	float persistence = 0.6f;
 
 	for (int i=0; i<octave; i++) {
-		float freq = pow(2.0, i);
+		float freq = pow(2.0f, i);
 		float amp = pow(persistence, i);
 
 		total += interpolate_noise(x*freq, y*freq) * amp;
@@ -162,7 +162,7 @@ int generate_terrain(short int *terrain, int3 offset, int3 dim) {
 
 	for (int i=0; i<CHUNK_W; i++) {
 		for (int j=0; j<CHUNK_L; j++) {
-			height[i][j] = Perlin2D( (float)(offset.x + i + W*CHUNK_W)/(W*CHUNK_W), (float)(offset.y + j + L*CHUNK_L)/(L*CHUNK_L));
+			height[i][j] = Perlin2D( (float)(offset.x + i + 1048576)/(W*CHUNK_W), (float)(offset.y + j + 1048576)/(L*CHUNK_L));
 			//printf(":::: %f ", noise2(offset.x+i, offset.y+j));
 		}
 	}
@@ -186,16 +186,16 @@ int generate_terrain(short int *terrain, int3 offset, int3 dim) {
 				else if (pos.z + 1 < height[i][j])
 					terrain[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i] = Block::SOIL;
 				else if (pos.z < height[i][j]) {
-					if (height[i][j] > 69)
+					if (height[i][j] > 84)
 						terrain[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i] = Block::SNOW;
 					else
 						terrain[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i] = Block::GRASS;
 				}
 
-				else if (pos.z < 43) {
+				else if (pos.z < 57) {
 					terrain[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i] = Block::GLASS;
 				}
-				else if (pos.z == 43 && pos.z - 1 < height[i][j]) {
+				else if (pos.z == 57 && pos.z - 1 < height[i][j]) {
 					terrain[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i] = Block::SAND;
 				}
 			}
@@ -286,8 +286,8 @@ int main(int agrc, char *argv[]) {
 	int3 dim(16, 16, 128);
 	int world_id = 1;
 
-	for (int i=-10; i<10; i++) {
-		for (int j=-10; j<10; j++) {
+	for (int i=-20; i<20; i++) {
+		for (int j=-20; j<20; j++) {
 			for (int k=-1; k<2; k++) {
 				chkid.x = i;
 				chkid.y = j;

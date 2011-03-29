@@ -124,6 +124,8 @@ public :
 	static void GetTextureCoordinates(short int type, int dir, float2 &dst);
 	void GenerateVBOArray(GLfloat *vertices, Block *blocks);
 
+	int FindBlock(float3 pos, float3 dir, int depth, int3 &id, int3 &offset, int &side);
+
 	typedef std::pair<render_chunk *, map_chunk *> render_pair;
 	class RenderChunkThread {
 	private:
