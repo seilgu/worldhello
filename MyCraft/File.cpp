@@ -25,7 +25,7 @@ unsigned char FileMgr::QueryChunk(int3 id) {
 		}
 	}
 	else {
-		return (*it).second;
+		return it->second;
 	}
 }
 

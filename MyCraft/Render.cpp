@@ -4,77 +4,6 @@
 extern float zNear;
 extern int _width, _height;
 
-void Render::DrawFaceSimple(int i, int j, int k, int type, int dir) {
-	if (type == 0) return;
-
-	glTranslatef(i*1.0f, j*1.0f, k*1.0f);
-	GLuint side_texture;
-
-	switch (type) {
-	case Block::CRATE: // Draw a crate
-		side_texture = TextureMgr::CRATE;
-		break;
-	case Block::GRASS: // Draw a grass
-		switch (dir) {
-		case PZ: side_texture = TextureMgr::GRASS_TOP; break;
-		case NZ: side_texture = TextureMgr::GRASS_BUTTOM; break;
-		default: side_texture = TextureMgr::GRASS_SIDE; break;
-		}
-		break;
-	case Block::SOIL:
-		side_texture = TextureMgr::SOIL;
-		break;
-	default: break;
-	}
-
-	float2 coord;
-	float csize = 1/16.0f;
-
-	glBegin(GL_QUADS);
-		coord = get_texture_coord(side_texture);
-		switch (dir) {
-		case PZ: // top
-			glTexCoord2f(coord.x, coord.y);				glVertex3f(0.0f, 0.0f, 1.0f);
-			glTexCoord2f(coord.x+csize, coord.y);		glVertex3f(1.0f, 0.0f, 1.0f);
-			glTexCoord2f(coord.x+csize, coord.y+csize); glVertex3f(1.0f, 1.0f, 1.0f);
-			glTexCoord2f(coord.x, coord.y+csize);		glVertex3f(0.0f, 1.0f, 1.0f);
-			break;
-		case NZ: // buttom
-			glTexCoord2f(coord.x, coord.y);				glVertex3f(1.0f, 0.0f, 0.0f);
-			glTexCoord2f(coord.x+csize, coord.y);		glVertex3f(0.0f, 0.0f, 0.0f);
-			glTexCoord2f(coord.x+csize, coord.y+csize); glVertex3f(0.0f, 1.0f, 0.0f);
-			glTexCoord2f(coord.x, coord.y+csize);		glVertex3f(1.0f, 1.0f, 0.0f);
-			break;
-		case PY: // +y
-			glTexCoord2f(coord.x, coord.y);				glVertex3f(1.0f, 1.0f, 0.0f);
-			glTexCoord2f(coord.x+csize, coord.y);		glVertex3f(0.0f, 1.0f, 0.0f);
-			glTexCoord2f(coord.x+csize, coord.y+csize);	glVertex3f(0.0f, 1.0f, 1.0f);
-			glTexCoord2f(coord.x, coord.y+csize);		glVertex3f(1.0f, 1.0f, 1.0f);
-			break;
-		case NY: // -y
-			glTexCoord2f(coord.x, coord.y);				glVertex3f(0.0f, 0.0f, 0.0f);
-			glTexCoord2f(coord.x+csize, coord.y);		glVertex3f(1.0f, 0.0f, 0.0f);
-			glTexCoord2f(coord.x+csize, coord.y+csize);	glVertex3f(1.0f, 0.0f, 1.0f);
-			glTexCoord2f(coord.x, coord.y+csize);		glVertex3f(0.0f, 0.0f, 1.0f);
-			break;
-		case PX: // +x
-			glTexCoord2f(coord.x, coord.y);				glVertex3f(1.0f, 0.0f, 0.0f);
-			glTexCoord2f(coord.x+csize, coord.y);		glVertex3f(1.0f, 1.0f, 0.0f);
-			glTexCoord2f(coord.x+csize, coord.y+csize);	glVertex3f(1.0f, 1.0f, 1.0f);
-			glTexCoord2f(coord.x, coord.y+csize);		glVertex3f(1.0f, 0.0f, 1.0f);
-			break;
-		case NX: // -x
-			glTexCoord2f(coord.x, coord.y);				glVertex3f(0.0f, 0.0f, 0.0f);
-			glTexCoord2f(coord.x, coord.y+csize);		glVertex3f(0.0f, 0.0f, 1.0f);
-			glTexCoord2f(coord.x+csize, coord.y+csize); glVertex3f(0.0f, 1.0f, 1.0f);
-			glTexCoord2f(coord.x+csize, coord.y);		glVertex3f(0.0f, 1.0f, 0.0f);
-			break;
-		}
-	glEnd();
-
-	glTranslatef(-i*1.0f, -j*1.0f, -k*1.0f);
-}
-
 Render::~Render() {
 	KillWorkThread();
 
@@ -91,10 +20,16 @@ void Render::DeleteChunk(render_chunk *chk) {
 	if (chk == 0) return;
 
 	glDeleteBuffersARB(1, &chk->vbo);
+	glDeleteBuffersARB(1, &chk->vbo_water);
 
 	if (chk->vertices != 0) {
 		delete[] chk->vertices;
 		chk->vertices = 0;
+	}
+
+	if (chk->verticeswater != 0) {
+		delete[] chk->verticeswater;
+		chk->verticeswater = 0;
 	}
 
 	delete chk;
@@ -212,18 +147,9 @@ void Render::CalculateVisible(int3 id, World* world) {
 
 	Block *blocks = map_chk->blocks;
 	
-	
 	// cleaning and setup
 	for (int i=0; i<CHUNK_W*CHUNK_L*CHUNK_H; i++) {
-		//if (blocks[i].modified == 1) {
-			// for first and second pass
-			if (blocks[i].opaque == 1 || blocks[i].translucent == 1) // hide all touchable
-				blocks[i].hidden = 1;
-			else
-				blocks[i].hidden = 0;
-
-			blocks[i].outside = 0; // clean face flag
-		//}
+		blocks[i].outside = 0;
 	}
 
 	// first pass, find solids
@@ -234,12 +160,10 @@ void Render::CalculateVisible(int3 id, World* world) {
 			for (int k=1; k<CHUNK_H; k++) {
 				if (inside == 0 && blocks[_1D(i, j, k)].opaque == 1) {
 					inside = 1;
-					blocks[_1D(i, j, k)].hidden = 0;
 					blocks[_1D(i, j, k)].outside |= 1<<NZ;
 				}
 				else if (inside == 1 && blocks[_1D(i, j, k)].opaque == 0) {
 					inside = 0;
-					blocks[_1D(i, j, k-1)].hidden = 0;
 					blocks[_1D(i, j, k-1)].outside |= 1<<PZ;
 				}
 			}
@@ -251,12 +175,10 @@ void Render::CalculateVisible(int3 id, World* world) {
 			for (int j=1; j<CHUNK_L; j++) {
 				if (inside == 0 && blocks[_1D(i, j, k)].opaque == 1) {
 					inside = 1;
-					blocks[_1D(i, j, k)].hidden = 0;
 					blocks[_1D(i, j, k)].outside |= 1<<NY;
 				}
 				else if (inside == 1 && blocks[_1D(i, j, k)].opaque == 0) {
 					inside = 0;
-					blocks[_1D(i, j-1, k)].hidden = 0;
 					blocks[_1D(i, j-1, k)].outside |= 1<<PY;
 				}
 			}
@@ -268,12 +190,10 @@ void Render::CalculateVisible(int3 id, World* world) {
 			for (int i=1; i<CHUNK_W; i++) {
 				if (inside == 0 && blocks[_1D(i, j, k)].opaque == 1) {
 					inside = 1;
-					blocks[_1D(i, j, k)].hidden = 0;
 					blocks[_1D(i, j, k)].outside |= 1<<NX;
 				}
 				else if (inside == 1 && blocks[_1D(i, j, k)].opaque == 0) {
 					inside = 0;
-					blocks[_1D(i-1, j, k)].hidden = 0;
 					blocks[_1D(i-1, j, k)].outside |= 1<<PX;
 				}
 			}
@@ -294,14 +214,12 @@ void Render::CalculateVisible(int3 id, World* world) {
 				if (inside == 0 && blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].translucent == 1) {
 					inside = 1;
 					if (blocks[(k-1)*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].type == Block::NUL) {
-						blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden = 0;
 						blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].outside |= 1<<NZ;
 					}
 				}
 				else if (inside == 1 && blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].translucent == 0) {
 					inside = 0;
 					if (blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].type == Block::NUL) {
-						blocks[(k-1)*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden = 0;
 						blocks[(k-1)*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].outside |= 1<<PZ;
 					}
 				}
@@ -315,14 +233,12 @@ void Render::CalculateVisible(int3 id, World* world) {
 				if (inside == 0 && blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].translucent == 1) {
 					inside = 1;
 					if (blocks[k*(CHUNK_W*CHUNK_L) + (j-1)*(CHUNK_W) + i].type == Block::NUL) {
-						blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden = 0;
 						blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].outside |= 1<<NY;
 					}
 				}
 				else if (inside == 1 && blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].translucent == 0) {
 					inside = 0;
 					if (blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].type == Block::NUL) {
-						blocks[k*(CHUNK_W*CHUNK_L) + (j-1)*(CHUNK_W) + i].hidden = 0;
 						blocks[k*(CHUNK_W*CHUNK_L) + (j-1)*(CHUNK_W) + i].outside |= 1<<PY;
 					}
 				}
@@ -336,14 +252,12 @@ void Render::CalculateVisible(int3 id, World* world) {
 				if (inside == 0 && blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].translucent == 1) {
 					inside = 1;
 					if (blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i-1].type == Block::NUL) {
-						blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden = 0;
 						blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].outside |= 1<<NX;
 					}
 				}
 				else if (inside == 1 && blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].translucent == 0) {
 					inside = 0;
 					if (blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].type == Block::NUL) {
-						blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i-1].hidden = 0;
 						blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i-1].outside |= 1<<PX;
 					}
 				}
@@ -386,115 +300,78 @@ void Render::CheckChunkSide(int3 id, int dir) {
 		return;
 	}
 
-	// DOESN'T COVER REFILLED LAND !!
 	// not edge
 	Block *aux = map_side->blocks;
 	switch (dir) {
 	case Render::PX : 
 		for (int j=0; j<CHUNK_L; j++) {
 			for (int k=0; k<CHUNK_H; k++) {
-				if (aux[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + 0].opaque == 0 && 
-					blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + (CHUNK_W-1)].opaque == 0) continue;
-				if (aux[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + 0].opaque == 0) {
-					blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + (CHUNK_W-1)].hidden = 0;
-					blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + (CHUNK_W-1)].outside |= 1<<PX;
+				if (aux[_1D(0, j, k)].opaque == 0 && blocks[_1D(CHUNK_W-1, j, k)].opaque == 1) {
+					blocks[_1D(CHUNK_W-1, j, k)].outside |= 1<<PX;
 				}
-				if (blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + (CHUNK_W-1)].opaque == 0) {
-					aux[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + 0].hidden = 0;
-					aux[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + 0].outside |= 1<<NX;
+				else if (aux[_1D(0, j, k)].opaque == 1 && blocks[_1D(CHUNK_W-1, j, k)].opaque == 0) {
+					aux[_1D(0, j, k)].outside |= 1<<NX;
 				}
-				//blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + (CHUNK_W-1)].hidden &= aux[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + 0].opaque;
-				//aux[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + 0].hidden &= blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + (CHUNK_W-1)].opaque;
 			}
 		}
 		break;
 	case Render::NX : 
 		for (int j=0; j<CHUNK_L; j++) {
 			for (int k=0; k<CHUNK_H; k++) {
-				if (aux[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + (CHUNK_W-1)].opaque == 0 && 
-					blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + 0].opaque == 0) continue;
-				if (aux[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + (CHUNK_W-1)].opaque == 0) {
-					blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + 0].hidden = 0;
-					blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + 0].outside |= 1<<NX;
+				if (aux[_1D(CHUNK_W-1, j, k)].opaque == 0 && blocks[_1D(0, j, k)].opaque == 1) {
+					blocks[_1D(0, j, k)].outside |= 1<<NX;
 				}
-				if (blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + 0].opaque == 0) {
-					aux[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + (CHUNK_W-1)].hidden = 0;
-					aux[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + (CHUNK_W-1)].outside |= 1<<PX;
+				else if (aux[_1D(CHUNK_W-1, j, k)].opaque == 1 && blocks[_1D(0, j, k)].opaque == 0) {
+					aux[_1D(CHUNK_W-1, j, k)].outside |= 1<<PX;
 				}
-				//blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + 0].hidden &= aux[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + (CHUNK_W-1)].opaque;
-				//aux[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + (CHUNK_W-1)].hidden &= blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + 0].opaque;
 			}
 		}
 		break;
 	case Render::PY : 
 		for (int i=0; i<CHUNK_W; i++) {
 			for (int k=0; k<CHUNK_H; k++) {
-				if (aux[k*(CHUNK_W*CHUNK_L) + 0*(CHUNK_W) + i].opaque == 0 && 
-					blocks[k*(CHUNK_W*CHUNK_L) + (CHUNK_L-1)*(CHUNK_W) + i].opaque == 0) continue;
-				if (aux[k*(CHUNK_W*CHUNK_L) + 0*(CHUNK_W) + i].opaque == 0) {
-					blocks[k*(CHUNK_W*CHUNK_L) + (CHUNK_L-1)*(CHUNK_W) + i].hidden = 0;
-					blocks[k*(CHUNK_W*CHUNK_L) + (CHUNK_L-1)*(CHUNK_W) + i].outside |= 1<<PY;
+				if (aux[_1D(i, 0, k)].opaque == 0 && blocks[_1D(i, CHUNK_L-1, k)].opaque == 1) {
+					blocks[_1D(i, CHUNK_L-1, k)].outside |= 1<<PY;
 				}
-				if (blocks[k*(CHUNK_W*CHUNK_L) + (CHUNK_L-1)*(CHUNK_W) + i].opaque == 0) {
-					aux[k*(CHUNK_W*CHUNK_L) + 0*(CHUNK_W) + i].hidden = 0;
-					aux[k*(CHUNK_W*CHUNK_L) + 0*(CHUNK_W) + i].outside |= 1<<NY;
+				else if (aux[_1D(i, 0, k)].opaque == 1 && blocks[_1D(i, CHUNK_L-1, k)].opaque == 0) {
+					aux[_1D(i, 0, k)].outside |= 1<<NY;
 				}
-				//blocks[k*(CHUNK_W*CHUNK_L) + (CHUNK_L-1)*(CHUNK_W) + i].hidden &= aux[k*(CHUNK_W*CHUNK_L) + 0*(CHUNK_W) + i].opaque;
-				//aux[k*(CHUNK_W*CHUNK_L) + 0*(CHUNK_W) + i].hidden &= blocks[k*(CHUNK_W*CHUNK_L) + (CHUNK_L-1)*(CHUNK_W) + i].opaque;
 			}
 		}
 		break;
 	case Render::NY : 
 		for (int i=0; i<CHUNK_W; i++) {
 			for (int k=0; k<CHUNK_H; k++) {
-				if (aux[k*(CHUNK_W*CHUNK_L) + (CHUNK_L-1)*(CHUNK_W) + i].opaque == 0 &&
-					blocks[k*(CHUNK_W*CHUNK_L) + 0*(CHUNK_W) + i].opaque == 0) continue;
-				if (aux[k*(CHUNK_W*CHUNK_L) + (CHUNK_L-1)*(CHUNK_W) + i].opaque == 0) {
-					blocks[k*(CHUNK_W*CHUNK_L) + 0*(CHUNK_W) + i].hidden = 0;
-					blocks[k*(CHUNK_W*CHUNK_L) + 0*(CHUNK_W) + i].outside |= 1<<NY;
+				if (aux[_1D(i, CHUNK_L-1, k)].opaque == 0 && blocks[_1D(i, 0, k)].opaque == 1) {
+					blocks[_1D(i, 0, k)].outside |= 1<<NY;
 				}
-				if (blocks[k*(CHUNK_W*CHUNK_L) + 0*(CHUNK_W) + i].opaque == 0) {
-					aux[k*(CHUNK_W*CHUNK_L) + (CHUNK_L-1)*(CHUNK_W) + i].hidden = 0;
-					aux[k*(CHUNK_W*CHUNK_L) + (CHUNK_L-1)*(CHUNK_W) + i].outside |= 1<<PY;
+				else if (aux[_1D(i, CHUNK_L-1, k)].opaque == 1 && blocks[_1D(i, 0, k)].opaque == 0) {
+					aux[_1D(i, CHUNK_L-1, k)].outside |= 1<<PY;
 				}
-				//blocks[k*(CHUNK_W*CHUNK_L) + 0*(CHUNK_W) + i].hidden &= aux[k*(CHUNK_W*CHUNK_L) + (CHUNK_L-1)*(CHUNK_W) + i].opaque;
-				//aux[k*(CHUNK_W*CHUNK_L) + (CHUNK_L-1)*(CHUNK_W) + i].hidden &= blocks[k*(CHUNK_W*CHUNK_L) + 0*(CHUNK_W) + i].opaque;
 			}
 		}
 		break;
 	case Render::PZ : 
 		for (int i=0; i<CHUNK_W; i++) {
 			for (int j=0; j<CHUNK_L; j++) {
-				if (aux[0*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque == 0 &&
-					blocks[(CHUNK_H-1)*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque == 0) continue;
-				if (aux[0*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque == 0) {
-					blocks[(CHUNK_H-1)*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden = 0;
-					blocks[(CHUNK_H-1)*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].outside |= 1<<PZ;
+				if (aux[_1D(i, j, 0)].opaque == 0 && blocks[_1D(i, j, CHUNK_W-1)].opaque == 1) {
+					blocks[_1D(i, j, CHUNK_W-1)].outside |= 1<<PZ;
 				}
-				if (blocks[(CHUNK_H-1)*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque == 0) {
-					aux[0*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden = 0;
-					aux[0*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].outside |= 1<< NZ;
+				else if (aux[_1D(i, j, 0)].opaque == 1 && blocks[_1D(i, j, CHUNK_W-1)].opaque == 0) {
+					aux[_1D(i, j, 0)].outside |= 1<<NZ;
 				}
-				//blocks[(CHUNK_H-1)*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden &= aux[0*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque;
-				//aux[0*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden &= blocks[(CHUNK_H-1)*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque;
 			}
 		}
 		break;
 	case Render::NZ : 
 		for (int i=0; i<CHUNK_W; i++) {
 			for (int j=0; j<CHUNK_L; j++) {
-				if (aux[(CHUNK_H-1)*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque == 0 &&
-					blocks[0*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque == 0) continue;
-				if (aux[(CHUNK_H-1)*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque == 0) {
-					blocks[0*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden = 0;
-					blocks[0*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].outside |= 1<<NZ;
+				if (aux[_1D(i, j, CHUNK_H-1)].opaque == 0 && blocks[_1D(i, j, 0)].opaque == 1) {
+					blocks[_1D(i, j, 0)].outside |= 1<<NZ;
 				}
-				if (blocks[0*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque == 0) {
-					aux[(CHUNK_H-1)*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden = 0;
-					aux[(CHUNK_H-1)*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].outside |= 1<<PZ;
+				else if (aux[_1D(i, j, CHUNK_H-1)].opaque == 1 && blocks[_1D(i, j, 0)].opaque == 0) {
+					aux[_1D(i, j, CHUNK_H-1)].outside |= 1<<PZ;
 				}
-				//blocks[0*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden &= aux[(CHUNK_H-1)*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque;
-				//aux[(CHUNK_H-1)*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden &= blocks[0*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].opaque;
 			}
 		}
 		break;
@@ -586,9 +463,10 @@ void Render::UpdateVBO(render_chunk *ren_chk, map_chunk *map_chk) {
 	Block *blocks = map_chk->blocks;
 	int size = 0;
 
+	// no water pass
 	int i = CHUNK_W*CHUNK_L*CHUNK_H;
 	while (i--) {
-		if (blocks[i].type == Block::NUL || blocks[i].hidden == 1)
+		if (blocks[i].type == Block::NUL || blocks[i].translucent == 1 || blocks[i].outside == 0)
 			continue;
 
 		if (blocks[i].outside & (1<<0)) size++;
@@ -598,11 +476,13 @@ void Render::UpdateVBO(render_chunk *ren_chk, map_chunk *map_chk) {
 		if (blocks[i].outside & (1<<4)) size++;
 		if (blocks[i].outside & (1<<5)) size++;
 	}
-		
+	
+	// size = num_faces
+	// 2texcoord 3normal 3coord * 4 = 32
 	int newvbo = 0;
 	if (ren_chk->vertices == 0) {
 		newvbo = 1;
-		ren_chk->vertices = new GLfloat[size*20];
+		ren_chk->vertices = new GLfloat[size*32];
 		ren_chk->vbo_size = size;
 	}
 	else if (size > ren_chk->vbo_size) {
@@ -610,7 +490,7 @@ void Render::UpdateVBO(render_chunk *ren_chk, map_chunk *map_chk) {
 			delete[] ren_chk->vertices;
 			ren_chk->vertices = 0;
 		}
-		ren_chk->vertices = new GLfloat[size*20];
+		ren_chk->vertices = new GLfloat[size*32];
 		
 		ren_chk->vbo_size = size;
 		newvbo = 1;
@@ -624,20 +504,74 @@ void Render::UpdateVBO(render_chunk *ren_chk, map_chunk *map_chk) {
 		return;
 	}
 	
-	GenerateVBOArray(vertices, map_chk->blocks);
-
-	ren_chk->num_faces = size;
+	GenerateVBOArray(vertices, map_chk->blocks, 0);
 
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, ren_chk->vbo);
 
 	// now upload to graphics card
 	
 	if (newvbo == 1)
-		glBufferDataARB(GL_ARRAY_BUFFER_ARB, size*20*sizeof(GLfloat), ren_chk->vertices, GL_STATIC_DRAW_ARB);
+		glBufferDataARB(GL_ARRAY_BUFFER_ARB, size*32*sizeof(GLfloat), ren_chk->vertices, GL_STATIC_DRAW_ARB);
 	else
-		glBufferSubDataARB(GL_ARRAY_BUFFER_ARB, 0, size*20*sizeof(GLfloat), ren_chk->vertices);
+		glBufferSubDataARB(GL_ARRAY_BUFFER_ARB, 0, size*32*sizeof(GLfloat), ren_chk->vertices);
 	
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
+
+	///////////////////////////// water pass
+	size = 0;
+	i = CHUNK_W*CHUNK_L*CHUNK_H;
+	while (i--) {
+		if (blocks[i].type == Block::NUL || blocks[i].translucent == 0 || blocks[i].outside == 0)
+			continue;
+
+		if (blocks[i].outside & (1<<0)) size++;
+		if (blocks[i].outside & (1<<1)) size++;
+		if (blocks[i].outside & (1<<2)) size++;
+		if (blocks[i].outside & (1<<3)) size++;
+		if (blocks[i].outside & (1<<4)) size++;
+		if (blocks[i].outside & (1<<5)) size++;
+	}
+	
+	// size = num_faces
+	// 2texcoord 3normal 3coord * 4 = 32
+	newvbo = 0;
+	if (ren_chk->verticeswater == 0) {
+		newvbo = 1;
+		ren_chk->verticeswater = new GLfloat[size*32];
+		ren_chk->vbo_size_water = size;
+	}
+	else if (size > ren_chk->vbo_size_water) {
+		if (ren_chk->verticeswater != 0) {
+			delete[] ren_chk->verticeswater;
+			ren_chk->verticeswater = 0;
+		}
+		ren_chk->verticeswater = new GLfloat[size*32];
+		
+		ren_chk->vbo_size_water = size;
+		newvbo = 1;
+	}
+
+	vertices = ren_chk->verticeswater;
+
+	if (vertices == 0) {
+		MessageBox(0, "vertices alloc failed", "haha", 0);
+		ren_chk->failed = 1;
+		return;
+	}
+	
+	GenerateVBOArray(vertices, map_chk->blocks, 1);
+
+	glBindBufferARB(GL_ARRAY_BUFFER_ARB, ren_chk->vbo_water);
+
+	// now upload to graphics card
+	
+	if (newvbo == 1)
+		glBufferDataARB(GL_ARRAY_BUFFER_ARB, size*32*sizeof(GLfloat), ren_chk->verticeswater, GL_STATIC_DRAW_ARB);
+	else
+		glBufferSubDataARB(GL_ARRAY_BUFFER_ARB, 0, size*32*sizeof(GLfloat), ren_chk->verticeswater);
+	
+	glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
+	/////////////////////////////
 
 	ren_chk->loaded = 1;
 }
@@ -693,11 +627,13 @@ render_chunk *Render::CreateEmptyChunk() {
 	renderchk->loaded = 0;
 	renderchk->failed = 0;
 	renderchk->unneeded = 0;
-	renderchk->num_faces = 0;
 	renderchk->id = int3(0, 0, 0);
 	renderchk->vbo = 0;
+	renderchk->vbo_water = 0;
 	renderchk->vbo_size = 0;
+	renderchk->vbo_size_water = 0;
 	renderchk->vertices = 0;
+	renderchk->verticeswater = 0;
 
 	return renderchk;
 }
@@ -760,7 +696,7 @@ void Render::LoadNeededChunks(float3 pos, float3 dir, World *world) {
 	}
 }
 
-void Render::RenderChunk(render_chunk *tmp, float3 pos, float3 dir) {
+void Render::RenderChunk(render_chunk *tmp, float3 pos, float3 dir, int water) {
 	if (tmp == 0 || tmp->failed == 1 || tmp->loaded == 0 || tmp->unneeded == 1)
 		return;
 
@@ -804,90 +740,35 @@ void Render::RenderChunk(render_chunk *tmp, float3 pos, float3 dir) {
 	}
 	
 	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+	glEnableClientState(GL_NORMAL_ARRAY);
 	glEnableClientState(GL_VERTEX_ARRAY);
 
-	glBindBufferARB(GL_ARRAY_BUFFER_ARB, tmp->vbo);
-	
-	glTexCoordPointer(2, GL_FLOAT, 5*sizeof(GLfloat), 0);
-	glVertexPointer(3, GL_FLOAT, 5*sizeof(GLfloat), (void *)(2*sizeof(GLfloat)));
-	
-    glDrawArrays( GL_QUADS, 0, tmp->num_faces*4 );
+	if (water == 0) {
+		glBindBufferARB(GL_ARRAY_BUFFER_ARB, tmp->vbo);
+
+		glTexCoordPointer(2, GL_FLOAT, 8*sizeof(GLfloat), 0);
+		glNormalPointer(GL_FLOAT, 8*sizeof(GLfloat), (void *)(2*sizeof(GLfloat)));
+		glVertexPointer(3, GL_FLOAT, 8*sizeof(GLfloat), (void *)(5*sizeof(GLfloat)));
+
+		glDrawArrays( GL_QUADS, 0, tmp->vbo_size*4 );
+	}
+	else {
+
+		glBindBufferARB(GL_ARRAY_BUFFER_ARB, tmp->vbo_water);
+
+		glTexCoordPointer(2, GL_FLOAT, 8*sizeof(GLfloat), 0);
+		glNormalPointer(GL_FLOAT, 8*sizeof(GLfloat), (void *)(2*sizeof(GLfloat)));
+		glVertexPointer(3, GL_FLOAT, 8*sizeof(GLfloat), (void *)(5*sizeof(GLfloat)));
+
+		glDrawArrays( GL_QUADS, 0, tmp->vbo_size_water*4 );
+	}
 
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
 
 	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+	glDisableClientState(GL_NORMAL_ARRAY);
 	glDisableClientState(GL_VERTEX_ARRAY);
 }
-
-// No VBO version
-extern float fovY;
-extern GLuint blockDisplayList;
-void Render::RenderChunk0(map_chunk *chk, float3 pos, float3 dir) {
-	float3 rel;
-	
-	// do whole chunk's culling
-
-	int3 cid = chk->id;
-
-	// right plane normal
-	normalize(dir);
-	float3 rhs = float3(dir.y, -dir.x, 0);
-	normalize(rhs);
-	float r = sqrt(dir.x*dir.x + dir.y*dir.y);
-	float3 upside = float3(-dir.z*dir.x/r, -dir.z*dir.y/r, r);
-
-	float3 normal;
-
-	for (int w=0; w<4; w++) {
-		float3 n(cid.x+1.0f, cid.y+1.0f, cid.z+1.0f);
-		switch (w) {
-		case 0:
-			normal = cross_prod(zNear*dir + rhs*zNear, upside);
-			break;
-		case 1:
-			normal = cross_prod(upside, zNear*dir - rhs*zNear);
-			break;
-		case 2:
-			normal = cross_prod(rhs, zNear*dir + upside*zNear);
-			break;
-		case 3:
-			normal = cross_prod(zNear*dir - upside*zNear, rhs);
-			break;
-		}
-		if (normal.x > 0) { n.x--; }
-		if (normal.y > 0) { n.y--; }
-		if (normal.z > 0) { n.z--; }
-
-		n.x *= CHUNK_W; n.y *= CHUNK_L; n.z *= CHUNK_H;
-
-		n = BLOCK_LEN*n - pos;
-
-		if (dot_prod(normal, n) > 0) // all outside
-			return;
-	}
-
-	int type;
-	for (int i=0; i<CHUNK_W; i++) {
-		for (int j=0; j<CHUNK_L; j++) {
-			for (int k=0; k<CHUNK_H; k++) {
-				type = (chk->blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i]).type;
-				
-				if (type == Block::NUL) continue;
-				if (chk->blocks[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i].hidden == 1)
-					continue;
-
-				rel.x = (chk->id.x*CHUNK_W + i)*BLOCK_LEN - pos.x;
-				rel.y = (chk->id.y*CHUNK_L + j)*BLOCK_LEN - pos.y;
-				rel.z = (chk->id.z*CHUNK_H + k)*BLOCK_LEN - pos.z;
-				
-				glTranslatef(i*1.0f, j*1.0f, k*1.0f);
-				glCallList(blockDisplayList + type);
-				glTranslatef(-i*1.0f, -j*1.0f, -k*1.0f);
-			}
-		}
-	}
-}
-
 
 /*************************************************************************
 	Decides what to draw, how much to draw, from given perspective
@@ -919,50 +800,29 @@ void Render::DrawScene(float3 pos, float3 dir, float dist, World* world, int loo
 		id.z *= CHUNK_H;
 		
 		glTranslatef((GLfloat)id.x, (GLfloat)id.y, (GLfloat)id.z);
-		RenderChunk(tmp, pos, dir);
+		RenderChunk(tmp, pos, dir, 0);
 		glTranslatef(-(GLfloat)id.x, -(GLfloat)id.y, -(GLfloat)id.z);
 	}
 
-	glPopMatrix();
-
-}
-
-// No VBO version
-
-void Render::DrawScene0(float3 pos, float3 dir, float dist, World* world) {
-
-	glPushMatrix();	
-
-	gluLookAt(pos.x, pos.y, pos.z, pos.x+dir.x, pos.y+dir.y, pos.z+dir.z, 0, 0, 1);
-
-	chunk_list *list = s_World->GetRenderChunks(pos, dir);
-	chunk_list::iterator it;
-	
-	glBindTexture(GL_TEXTURE_2D, s_Texture->block_texture);
-	
-	glScalef(BLOCK_LEN, BLOCK_LEN, BLOCK_LEN);
-	
-	for (it = list->begin(); it != list->end(); ++it) {
+	for (it = r_chunks.begin(); it != r_chunks.end(); ++it) {
 		int3 id = (*it).first;
-		map_chunk *tmp = (*it).second;
-		if (tmp->loaded == 0 || tmp->failed == 1 || tmp->unneeded == 1)
+		render_chunk *tmp = (*it).second;
+
+		if (tmp == 0 || tmp->failed == 1 || tmp->loaded == 0 || tmp->unneeded == 1)
 			continue;
 
-		if (tmp->modified == 1) {
-			CalculateVisible(tmp->id, world);
-			tmp->modified = 0;
-		}
 		// calculate to world coordinates
 		id.x *= CHUNK_W;
 		id.y *= CHUNK_L;
 		id.z *= CHUNK_H;
 		
 		glTranslatef((GLfloat)id.x, (GLfloat)id.y, (GLfloat)id.z);
-		RenderChunk0(tmp, pos, dir);
+		RenderChunk(tmp, pos, dir, 1);
 		glTranslatef(-(GLfloat)id.x, -(GLfloat)id.y, -(GLfloat)id.z);
 	}
 
 	glPopMatrix();
+
 }
 
 void Render::RenderChunkThread::threadLoop(void *param) {
@@ -987,7 +847,7 @@ void Render::RenderChunkThread::threadLoop(void *param) {
 }
 
 extern TextureMgr *s_Texture;
-void Render::GenerateVBOArray(GLfloat *vertices, Block *blocks) {
+void Render::GenerateVBOArray(GLfloat *vertices, Block *blocks, int water) {
 	
 	if (vertices == 0) {
 		MessageBox(0, "wrong usage", "ha", 0);
@@ -997,171 +857,253 @@ void Render::GenerateVBOArray(GLfloat *vertices, Block *blocks) {
 	int count = 0;
 	// now generate vertex & quads
 	for_xyz(i, j, k) {
-				int type = blocks[_1D(i, j, k)].type;
+		int type = blocks[_1D(i, j, k)].type;
 
-				if (type == Block::NUL)
-					continue;
+		if (type == Block::NUL)
+			continue;
 
-				if (blocks[_1D(i, j, k)].hidden == 1)
-					continue;
+		if (water == 1 && type != Block::GLASS) continue;
+		else if (water == 0 && type == Block::GLASS) continue;
 
-				int w = 6;
-				while (w--) { // 6 faces
-					if ((blocks[_1D(i, j, k)].outside & (1<<w)) == 0) continue;
-					float2 coord;
-					GetTextureCoordinates(type, w, coord);
-					//coord.x += 0.001f;
-					//coord.y += 0.001f;
-					float csize = 1/16.0f;
-					//csize -= 0.002f;
+		if (blocks[_1D(i, j, k)].outside == 0)
+			continue;
 
-					// texture coordinates are in the same order in each face except NX
-					int offset = count*20;
-					if (w != NX) {
-						vertices[offset + 0] = coord.x;
-						vertices[offset + 1] = coord.y;
-						vertices[offset + 5] = coord.x+csize;
-						vertices[offset + 6] = coord.y;
-						vertices[offset + 10] = coord.x+csize;
-						vertices[offset + 11] = coord.y+csize;
-						vertices[offset + 15] = coord.x;
-						vertices[offset + 16] = coord.y+csize;
-					}
-					else {
-						vertices[offset + 0] = coord.x;
-						vertices[offset + 1] = coord.y;
-						vertices[offset + 5] = coord.x;
-						vertices[offset + 6] = coord.y+csize;
-						vertices[offset + 10] = coord.x+csize;
-						vertices[offset + 11] = coord.y+csize;
-						vertices[offset + 15] = coord.x+csize;
-						vertices[offset + 16] = coord.y;
-					}
-					// now setup vertex coordinates of each face
-					switch (w) {
-					case PZ:
-						vertices[offset + 2] = 0.0f;
-						vertices[offset + 3] = 0.0f;
-						vertices[offset + 4] = 1.0f;
+		int w = 6;
+		while (w--) { // 6 faces
+			if ((blocks[_1D(i, j, k)].outside & (1<<w)) == 0) continue;
+			float2 coord;
+			GetTextureCoordinates(type, w, coord);
+			//coord.x += 0.001f;
+			//coord.y += 0.001f;
+			float csize = 1/16.0f;
+			//csize -= 0.002f;
 
-						vertices[offset + 7] = 1.0f;
-						vertices[offset + 8] = 0.0f;
-						vertices[offset + 9] = 1.0f;
+			// texture coordinates are in the same order in each face except NX
+			int offset = count*32;
+			if (w != NX) {
+				vertices[offset + 0] = coord.x;
+				vertices[offset + 1] = coord.y;
+				vertices[offset + 8] = coord.x+csize;
+				vertices[offset + 9] = coord.y;
+				vertices[offset + 16] = coord.x+csize;
+				vertices[offset + 17] = coord.y+csize;
+				vertices[offset + 24] = coord.x;
+				vertices[offset + 25] = coord.y+csize;
+			}
+			else {
+				vertices[offset + 0] = coord.x;
+				vertices[offset + 1] = coord.y;
+				vertices[offset + 8] = coord.x;
+				vertices[offset + 9] = coord.y+csize;
+				vertices[offset + 16] = coord.x+csize;
+				vertices[offset + 17] = coord.y+csize;
+				vertices[offset + 24] = coord.x+csize;
+				vertices[offset + 25] = coord.y;
+			}
+			// now setup vertex coordinates of each face
+			switch (w) {
+			case PZ:
+				// normals
+				vertices[offset + 2] = 0.0f;
+				vertices[offset + 3] = 0.0f;
+				vertices[offset + 4] = 1.0f;
+				vertices[offset + 10] = 0.0f;
+				vertices[offset + 11] = 0.0f;
+				vertices[offset + 12] = 1.0f;
+				vertices[offset + 18] = 0.0f;
+				vertices[offset + 19] = 0.0f;
+				vertices[offset + 20] = 1.0f;
+				vertices[offset + 26] = 0.0f;
+				vertices[offset + 27] = 0.0f;
+				vertices[offset + 28] = 1.0f;
+				
+				vertices[offset + 5] = 0.0f;
+				vertices[offset + 6] = 0.0f;
+				vertices[offset + 7] = 1.0f;
 
-						vertices[offset + 12] = 1.0f;
-						vertices[offset + 13] = 1.0f;
-						vertices[offset + 14] = 1.0f;
+				vertices[offset + 13] = 1.0f;
+				vertices[offset + 14] = 0.0f;
+				vertices[offset + 15] = 1.0f;
 
-						vertices[offset + 17] = 0.0f;
-						vertices[offset + 18] = 1.0f;
-						vertices[offset + 19] = 1.0f;
-						break;
-					case NZ:
-						vertices[offset + 2] = 1.0f;
-						vertices[offset + 3] = 0.0f;
-						vertices[offset + 4] = 0.0f;
+				vertices[offset + 21] = 1.0f;
+				vertices[offset + 22] = 1.0f;
+				vertices[offset + 23] = 1.0f;
 
-						vertices[offset + 7] = 0.0f;
-						vertices[offset + 8] = 0.0f;
-						vertices[offset + 9] = 0.0f;
+				vertices[offset + 29] = 0.0f;
+				vertices[offset + 30] = 1.0f;
+				vertices[offset + 31] = 1.0f;
+				break;
+			case NZ:
+				vertices[offset + 2] = 0.0f;
+				vertices[offset + 3] = 0.0f;
+				vertices[offset + 4] = -1.0f;
+				vertices[offset + 10] = 0.0f;
+				vertices[offset + 11] = 0.0f;
+				vertices[offset + 12] = -1.0f;
+				vertices[offset + 18] = 0.0f;
+				vertices[offset + 19] = 0.0f;
+				vertices[offset + 20] = -1.0f;
+				vertices[offset + 26] = 0.0f;
+				vertices[offset + 27] = 0.0f;
+				vertices[offset + 28] = -1.0f;
 
-						vertices[offset + 12] = 0.0f;
-						vertices[offset + 13] = 1.0f;
-						vertices[offset + 14] = 0.0f;
+				vertices[offset + 5] = 1.0f;
+				vertices[offset + 6] = 0.0f;
+				vertices[offset + 7] = 0.0f;
 
-						vertices[offset + 17] = 1.0f;
-						vertices[offset + 18] = 1.0f;
-						vertices[offset + 19] = 0.0f;
-						break;
-					case PY:
-						vertices[offset + 2] = 1.0f;
-						vertices[offset + 3] = 1.0f;
-						vertices[offset + 4] = 0.0f;
+				vertices[offset + 13] = 0.0f;
+				vertices[offset + 14] = 0.0f;
+				vertices[offset + 15] = 0.0f;
 
-						vertices[offset + 7] = 0.0f;
-						vertices[offset + 8] = 1.0f;
-						vertices[offset + 9] = 0.0f;
+				vertices[offset + 21] = 0.0f;
+				vertices[offset + 22] = 1.0f;
+				vertices[offset + 23] = 0.0f;
 
-						vertices[offset + 12] = 0.0f;
-						vertices[offset + 13] = 1.0f;
-						vertices[offset + 14] = 1.0f;
+				vertices[offset + 29] = 1.0f;
+				vertices[offset + 30] = 1.0f;
+				vertices[offset + 31] = 0.0f;
+				break;
+			case PY:
+				vertices[offset + 2] = 0.0f;
+				vertices[offset + 3] = 1.0f;
+				vertices[offset + 4] = 0.0f;
+				vertices[offset + 10] = 0.0f;
+				vertices[offset + 11] = 1.0f;
+				vertices[offset + 12] = 0.0f;
+				vertices[offset + 18] = 0.0f;
+				vertices[offset + 19] = 1.0f;
+				vertices[offset + 20] = 0.0f;
+				vertices[offset + 26] = 0.0f;
+				vertices[offset + 27] = 1.0f;
+				vertices[offset + 28] = 0.0f;
 
-						vertices[offset + 17] = 1.0f;
-						vertices[offset + 18] = 1.0f;
-						vertices[offset + 19] = 1.0f;
-						break;
-					case NY:
-						vertices[offset + 2] = 0.0f;
-						vertices[offset + 3] = 0.0f;
-						vertices[offset + 4] = 0.0f;
+				vertices[offset + 5] = 1.0f;
+				vertices[offset + 6] = 1.0f;
+				vertices[offset + 7] = 0.0f;
 
-						vertices[offset + 7] = 1.0f;
-						vertices[offset + 8] = 0.0f;
-						vertices[offset + 9] = 0.0f;
+				vertices[offset + 13] = 0.0f;
+				vertices[offset + 14] = 1.0f;
+				vertices[offset + 15] = 0.0f;
 
-						vertices[offset + 12] = 1.0f;
-						vertices[offset + 13] = 0.0f;
-						vertices[offset + 14] = 1.0f;
+				vertices[offset + 21] = 0.0f;
+				vertices[offset + 22] = 1.0f;
+				vertices[offset + 23] = 1.0f;
 
-						vertices[offset + 17] = 0.0f;
-						vertices[offset + 18] = 0.0f;
-						vertices[offset + 19] = 1.0f;
-						break;
-					case PX:
-						vertices[offset + 2] = 1.0f;
-						vertices[offset + 3] = 0.0f;
-						vertices[offset + 4] = 0.0f;
+				vertices[offset + 29] = 1.0f;
+				vertices[offset + 30] = 1.0f;
+				vertices[offset + 31] = 1.0f;
+				break;
+			case NY:
+				vertices[offset + 2] = 0.0f;
+				vertices[offset + 3] = -1.0f;
+				vertices[offset + 4] = 0.0f;
+				vertices[offset + 10] = 0.0f;
+				vertices[offset + 11] = -1.0f;
+				vertices[offset + 12] = 0.0f;
+				vertices[offset + 18] = 0.0f;
+				vertices[offset + 19] = -1.0f;
+				vertices[offset + 20] = 0.0f;
+				vertices[offset + 26] = 0.0f;
+				vertices[offset + 27] = -1.0f;
+				vertices[offset + 28] = 0.0f;
 
-						vertices[offset + 7] = 1.0f;
-						vertices[offset + 8] = 1.0f;
-						vertices[offset + 9] = 0.0f;
+				vertices[offset + 5] = 0.0f;
+				vertices[offset + 6] = 0.0f;
+				vertices[offset + 7] = 0.0f;
 
-						vertices[offset + 12] = 1.0f;
-						vertices[offset + 13] = 1.0f;
-						vertices[offset + 14] = 1.0f;
+				vertices[offset + 13] = 1.0f;
+				vertices[offset + 14] = 0.0f;
+				vertices[offset + 15] = 0.0f;
 
-						vertices[offset + 17] = 1.0f;
-						vertices[offset + 18] = 0.0f;
-						vertices[offset + 19] = 1.0f;
-						break;
-					case NX:
-						vertices[offset + 2] = 0.0f;
-						vertices[offset + 3] = 0.0f;
-						vertices[offset + 4] = 0.0f;
+				vertices[offset + 21] = 1.0f;
+				vertices[offset + 22] = 0.0f;
+				vertices[offset + 23] = 1.0f;
 
-						vertices[offset + 7] = 0.0f;
-						vertices[offset + 8] = 0.0f;
-						vertices[offset + 9] = 1.0f;
+				vertices[offset + 29] = 0.0f;
+				vertices[offset + 30] = 0.0f;
+				vertices[offset + 31] = 1.0f;
+				break;
+			case PX:
+				vertices[offset + 2] = 1.0f;
+				vertices[offset + 3] = 0.0f;
+				vertices[offset + 4] = 0.0f;
+				vertices[offset + 10] = 1.0f;
+				vertices[offset + 11] = 0.0f;
+				vertices[offset + 12] = 0.0f;
+				vertices[offset + 18] = 1.0f;
+				vertices[offset + 19] = 0.0f;
+				vertices[offset + 20] = 0.0f;
+				vertices[offset + 26] = 1.0f;
+				vertices[offset + 27] = 0.0f;
+				vertices[offset + 28] = 0.0f;
 
-						vertices[offset + 12] = 0.0f;
-						vertices[offset + 13] = 1.0f;
-						vertices[offset + 14] = 1.0f;
+				vertices[offset + 5] = 1.0f;
+				vertices[offset + 6] = 0.0f;
+				vertices[offset + 7] = 0.0f;
 
-						vertices[offset + 17] = 0.0f;
-						vertices[offset + 18] = 1.0f;
-						vertices[offset + 19] = 0.0f;
-						break;
-					}
+				vertices[offset + 13] = 1.0f;
+				vertices[offset + 14] = 1.0f;
+				vertices[offset + 15] = 0.0f;
 
-					// translate to relative position
-					vertices[offset + 2] += (GLfloat)i;
-					vertices[offset + 3] += (GLfloat)j;
-					vertices[offset + 4] += (GLfloat)k;
+				vertices[offset + 21] = 1.0f;
+				vertices[offset + 22] = 1.0f;
+				vertices[offset + 23] = 1.0f;
 
-					vertices[offset + 7] += (GLfloat)i;
-					vertices[offset + 8] += (GLfloat)j;
-					vertices[offset + 9] += (GLfloat)k;
+				vertices[offset + 29] = 1.0f;
+				vertices[offset + 30] = 0.0f;
+				vertices[offset + 31] = 1.0f;
+				break;
+			case NX:
+				vertices[offset + 2] = -1.0f;
+				vertices[offset + 3] = 0.0f;
+				vertices[offset + 4] = 0.0f;
+				vertices[offset + 10] = -1.0f;
+				vertices[offset + 11] = 0.0f;
+				vertices[offset + 12] = 0.0f;
+				vertices[offset + 18] = -1.0f;
+				vertices[offset + 19] = 0.0f;
+				vertices[offset + 20] = 0.0f;
+				vertices[offset + 26] = -1.0f;
+				vertices[offset + 27] = 0.0f;
+				vertices[offset + 28] = 0.0f;
 
-					vertices[offset + 12] += (GLfloat)i;
-					vertices[offset + 13] += (GLfloat)j;
-					vertices[offset + 14] += (GLfloat)k;
+				vertices[offset + 5] = 0.0f;
+				vertices[offset + 6] = 0.0f;
+				vertices[offset + 7] = 0.0f;
 
-					vertices[offset + 17] += (GLfloat)i;
-					vertices[offset + 18] += (GLfloat)j;
-					vertices[offset + 19] += (GLfloat)k;
-					// next face
-					count++;
-				}
+				vertices[offset + 13] = 0.0f;
+				vertices[offset + 14] = 0.0f;
+				vertices[offset + 15] = 1.0f;
+
+				vertices[offset + 21] = 0.0f;
+				vertices[offset + 22] = 1.0f;
+				vertices[offset + 23] = 1.0f;
+
+				vertices[offset + 29] = 0.0f;
+				vertices[offset + 30] = 1.0f;
+				vertices[offset + 31] = 0.0f;
+				break;
+			}
+
+			// translate to relative position
+			vertices[offset + 5] += (GLfloat)i;
+			vertices[offset + 6] += (GLfloat)j;
+			vertices[offset + 7] += (GLfloat)k;
+
+			vertices[offset + 13] += (GLfloat)i;
+			vertices[offset + 14] += (GLfloat)j;
+			vertices[offset + 15] += (GLfloat)k;
+
+			vertices[offset + 21] += (GLfloat)i;
+			vertices[offset + 22] += (GLfloat)j;
+			vertices[offset + 23] += (GLfloat)k;
+
+			vertices[offset + 29] += (GLfloat)i;
+			vertices[offset + 30] += (GLfloat)j;
+			vertices[offset + 31] += (GLfloat)k;
+			// next face
+			count++;
+		}
 	} end_xyz()
 }
 
@@ -1176,7 +1118,6 @@ void Render::RenderChunkThread::threadLoadChunk(render_pair pair, Render::Render
 	ren_chk->loaded = 0;
 	ren_chk->unneeded = 0;
 	ren_chk->vbo_size = 0;
-	ren_chk->num_faces = 0;
 
 	if (map_chk == 0 || ren_chk->id != map_chk->id) {
 		ren_chk->failed = 1;
@@ -1188,14 +1129,8 @@ void Render::RenderChunkThread::threadLoadChunk(render_pair pair, Render::Render
 		return;
 	}
 
-	//glDeleteBuffersARB(1, &ren_chk->vbo);
 	glGenBuffersARB(1, &ren_chk->vbo);
-	glBindBufferARB(GL_ARRAY_BUFFER_ARB, ren_chk->vbo);
-
-	// now upload to graphics card
-	glBufferDataARB(GL_ARRAY_BUFFER_ARB, 0, 0, GL_STATIC_DRAW_ARB);
-	
-	glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
+	glGenBuffersARB(1, &ren_chk->vbo_water);
 
 	ren_chk->loaded = 1;
 }

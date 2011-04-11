@@ -188,8 +188,10 @@ int generate_terrain(short int *terrain, int3 offset, int3 dim) {
 				else if (pos.z < height[i][j]) {
 					if (height[i][j] > 84)
 						terrain[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i] = Block::SNOW;
-					else
+					else if (pos.z > 57)
 						terrain[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i] = Block::GRASS;
+					else
+						terrain[k*(CHUNK_W*CHUNK_L) + j*(CHUNK_W) + i] = Block::SOIL;
 				}
 
 				else if (pos.z < 57) {

@@ -149,32 +149,8 @@ void ProcessInput() {
 				case Render::PZ: tmpOffset.z += 1; break;
 				case Render::NZ: tmpOffset.z -= 1; break;
 				}
-				if (tmpOffset.x >= CHUNK_W) {
-					tmpOffset.x = 0;
-					tmpId.x++;
-				}
-				else if (tmpOffset.x < 0) {
-					tmpOffset.x = CHUNK_W-1;
-					tmpId.x--;
-				}
-				if (tmpOffset.y >= CHUNK_L) {
-					tmpOffset.y = 0;
-					tmpId.y++;
-				}
-				else if (tmpOffset.y < 0) {
-					tmpOffset.y = CHUNK_L-1;
-					tmpId.y--;
-				}
-				if (tmpOffset.z >= CHUNK_H) {
-					tmpOffset.z = 0;
-					tmpId.z++;
-				}
-				else if (tmpOffset.z < 0) {
-					tmpOffset.z = CHUNK_H-1;
-					tmpId.z--;
-				}
 
-				s_World->AddBlock(tmpId, tmpOffset, Block::GRASS);
+				s_World->AddBlock(tmpId, tmpOffset, Block::LAVA);
 			}
 			else {
 				s_World->RemoveBlock(tmpId, tmpOffset);
@@ -237,8 +213,7 @@ void ProcessInput() {
 	}
 }
 
-int framecount = 0;
-double fps = 0;
+double millis = 0;
 void PrintDebugMessage() {
 	glBindTexture(GL_TEXTURE_2D, 0);
 
@@ -248,7 +223,7 @@ void PrintDebugMessage() {
 		(int)floor(pos.y / (BLOCK_LEN*CHUNK_L)), 
 		(int)floor(pos.z / (BLOCK_LEN*CHUNK_H)));
 #ifndef APPLE
-	fps = tickFreq/(currTick.LowPart - lastTick.LowPart);
+	millis = tickFreq/(currTick.LowPart - lastTick.LowPart);
 #endif
 	char buffer[128];
 
@@ -263,7 +238,7 @@ void PrintDebugMessage() {
 	glScalef(20, 20, 1);
 	
 	glPushMatrix();
-	glPrint("FPS:%4.0f %d,%d,%d", fps, id.x, id.y, id.z);
+	glPrint("Ms:%4.0f %d,%d,%d", millis, id.x, id.y, id.z);
 	glPopMatrix();
 	
 	s_Render->PrintChunkStatistics(buffer);
@@ -286,10 +261,8 @@ void DrawGLScene()
 	
 	ProcessInput();
 
-	//float3 lightPosition(60*BLOCK_LEN, -60*BLOCK_LEN, 110*BLOCK_LEN);
-	//float3 lightDir(0.001f, 0.001f, -1.0f);
-
-	glBlendFunc(GL_ONE, GL_ZERO);
+	//glBlendFunc(GL_ONE, GL_ZERO);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_TEXTURE_2D);
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
@@ -299,28 +272,29 @@ void DrawGLScene()
 
 
 	// frame update
-	s_World->UpdateWorld();
-	s_Render->DiscardUnneededChunks(m_Player->eyepos, m_Player->dir, s_World);
-	s_Render->LoadNeededChunks(m_Player->eyepos, m_Player->dir, s_World);
-	s_Render->DrawScene(m_Player->eyepos, m_Player->dir, 400, s_World, 1, 1);
-
+	
 	
 #ifndef APPLE
 	QueryPerformanceCounter(&lastTick);
 #endif
-	for (int i=0; i<10000; i++) {
-		int3 tmpId;
+	int3 tmpId;
 		int3 tmpOffset;
-		int tmpType;
-		s_Render->FindBlock(m_Player->eyepos, m_Player->dir, 128, tmpId, tmpOffset, tmpType);
-		//map_chunk *mapchk = s_World->world_map.GetChunk(int3(0, 1, 2));
-		//mapchk = s_World->world_map.GetChunk(int3(1, 1, 2));
-	}
+		int tmpSide;
+
+	s_World->UpdateWorld();
+	
 #ifndef APPLE
 	QueryPerformanceCounter(&currTick);
-	PrintDebugMessage();
 #endif
 
+	s_Render->DiscardUnneededChunks(m_Player->eyepos, m_Player->dir, s_World);
+	s_Render->LoadNeededChunks(m_Player->eyepos, m_Player->dir, s_World);
+
+	glEnable(GL_LIGHTING);
+	s_Render->DrawScene(m_Player->eyepos, m_Player->dir, 400, s_World, 1, 1);
+	glDisable(GL_LIGHTING);
+	
+	PrintDebugMessage();
 	// Draw Red Dot
 	glPointSize(3.0f);
 	glColor3f(1, 0, 0);
@@ -328,31 +302,6 @@ void DrawGLScene()
 		glVertex3f(0, 0, 0);
 	glEnd();
 	glColor3f(1, 1, 1);
-
-	/*int3 tmpId;
-	int3 tmpOffset;
-	int tmpType;
-	if (s_Render->FindBlock(m_Player->eyepos, m_Player->dir, 128, tmpId, tmpOffset, tmpType) == 1) {
-		glPushMatrix();
-
-		glMatrixMode(GL_PROJECTION);
-		glLoadIdentity();
-		glMatrixMode(GL_MODELVIEW);
-		glLoadIdentity();
-		glOrtho(0, _width, 0, _height, -1, 1);
-
-		glScalef(20, 20, 1);
-
-		glPushMatrix();
-			glTranslatef(0, 4, 0);
-			glPrint("ID: (%d,%d,%d), Offset: (%d,%d,%d), Type: %d", tmpId.x, tmpId.y, tmpId.z, tmpOffset.x, tmpOffset.y, tmpOffset.z, tmpType);
-		glPopMatrix();
-
-		glPopMatrix();
-
-	}*/
-
-
 	
 #ifdef APPLE
 	glutSwapBuffers();
@@ -385,8 +334,6 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 	
 	/************* Game things ***************/
 	InitClasses();
-
-	CompileDisplayLists();
 
 	LARGE_INTEGER _FREQ;
 	QueryPerformanceFrequency(&_FREQ);
@@ -429,8 +376,6 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 	}
 	
 	ShowCursor(true);
-
-	DeleteDisplayLists();
 
 	DeInitClasses();
 

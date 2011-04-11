@@ -50,25 +50,16 @@ public:
 	static const int SNOW_SIDE = TX(4, 11);
 	static const int SNOW_BUTTOM = TX(2, 15);
 
-	GLfloat *textureArray[256];
 	GLuint block_texture;
 
 public :
 	TextureMgr() {
-		for (int i=0; i<256; i++) {
-			textureArray[i] = 0;
-		}
 	}
 	~TextureMgr() {
-		for (int i=0; i<256; i++) {
-			if (textureArray[i] != 0) {
-				delete[] textureArray[i];
-			}
-		}
+		glDeleteTextures(1, &block_texture);
 	}
 
 	int LoadAllTextures();
-	void BuildTextureArrays();
 };
 
 #endif

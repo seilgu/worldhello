@@ -23,13 +23,14 @@ void Map::DeleteChunk(map_chunk *chk) {
 	if (chk == 0)
 		return;
 
-	if (chk->loaded == 0 && chk->failed == 0)
-		return;
+	//if (chk->loaded == 0 && chk->failed == 0)
+	//	return;
 
 	if (chk->blocks) {
 		delete[] chk->blocks;
 		chk->blocks = 0;
 	}
+
 	delete chk;
 	chk = 0;
 }
@@ -44,7 +45,7 @@ Map::~Map() {
 	chunk_list::iterator it;
 
 	for (it = m_chunks.begin(); it != m_chunks.end(); ) {
-		DeleteChunk((*it).second);
+		DeleteChunk(it->second);
 		m_chunks.erase(it++);
 	}
 }
@@ -77,7 +78,7 @@ void Map::MarkUnneededChunks(float3 pos, float3 dir) {
 	for (it = m_chunks.begin(); it != m_chunks.end(); ++it) {
 		int3 idchk = (*it).first;
 		map_chunk *tmp = (*it).second;
-		if (abs(idchk.x - id.x) > 20 || abs(idchk.y - id.y) > 20 || abs(idchk.z - id.z) > 3) {
+		if (abs(idchk.x - id.x) > 8 || abs(idchk.y - id.y) > 8 || abs(idchk.z - id.z) > 1) {
 			if (tmp->loaded == 1 || tmp->failed == 1)
 				tmp->unneeded = 1;
 		}
@@ -119,9 +120,9 @@ void Map::LoadNeededChunks(float3 pos, float3 dir) {
 	int3 tmp;
 	
 	// these are the needed 5x5 chunks around the player
-	for (int i=-20; i<=20; i++) {
-		for (int j=-20; j<=20; j++) {
-			for (int k=-3; k<=3; k++) {
+	for (int i=-8; i<=8; i++) {
+		for (int j=-8; j<=8; j++) {
+			for (int k=-1; k<=1; k++) {
 				// setup chunk ids
 				tmp.x = id.x + i;
 				tmp.y = id.y + j;
@@ -193,6 +194,44 @@ chunk_list *Map::GetChunkList() {
 	return &m_chunks;
 }
 
+// allow access to neighbors through invalid offset range
+Block* Map::GetBlock(int3 id, int3 offset, bool touch) {
+	if (offset.x >= CHUNK_W) {
+		offset.x = 0;
+		id.x++;
+	}
+	else if (offset.x < 0) {
+		offset.x = CHUNK_W-1;
+		id.x--;
+	}
+	if (offset.y >= CHUNK_L) {
+		offset.y = 0;
+		id.y++;
+	}
+	else if (offset.y < 0) {
+		offset.y = CHUNK_L-1;
+		id.y--;
+	}
+	if (offset.z >= CHUNK_H) {
+		offset.z = 0;
+		id.z++;
+	}
+	else if (offset.z < 0) {
+		offset.z = CHUNK_H-1;
+		id.z--;
+	}
+
+	map_chunk *mapchk = GetChunk(id);
+	
+	if (mapchk != 0) {
+		if (touch == true)
+			mapchk->modified = 1;
+
+		return &(mapchk->blocks[_1D(offset.x, offset.y, offset.z)]);
+	}
+
+	return 0;
+}
 
 /*********************** MapChunkThread class ***************************
 	Loads shit
@@ -203,7 +242,7 @@ void Map::MapChunkThread::threadLoop(void *param) {
 	while (self->active) {
 		// peek jobs
 		if (self->jobs.empty()) {
-			Sleep(20);
+			Sleep(10);
 		}
 		else {
 			// process jobs
@@ -250,22 +289,8 @@ void Map::MapChunkThread::threadLoadChunk(map_chunk *chk) {
 	// blockss
 	int i = CHUNK_W*CHUNK_L*CHUNK_H;
 	while (i--) {
-		unsigned short int t = type[i];
-		blocks[i].setType(t);
-		blocks[i].hidden = 1;
-		blocks[i].outside = 0;
-		blocks[i].data = 0;
+		blocks[i].setType( type[i] );
 	}
-
-	/*for_xyz(i, j, k) {
-		unsigned short int t = type[_1D(i, j, k)];
-
-		blocks[_1D(i, j, k)].setType(t);
-
-		blocks[_1D(i, j, k)].hidden = 1;
-
-		blocks[_1D(i, j, k)].outside = 0;
-	} end_xyz()*/
 
 	chk->modified = 1;
 	

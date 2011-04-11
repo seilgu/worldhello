@@ -126,6 +126,7 @@ public :
 	map_chunk *CreateEmptyChunk();
 	void CalculateVisible(int3 id);
 	void CheckChunkSide(int3 id, int dir);
+	Block* GetBlock(int3 id, int3 offset, bool touch);
 };
 
 

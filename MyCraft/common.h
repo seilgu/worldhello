@@ -75,9 +75,6 @@ void Motion(int x, int y);
 #define min3(i, j, k) min2( (i), min2( (j), (k) ) )
 #define max3(i, j, k) max2( (i), max2( (j), (k) ) )
 
-#define for_xy(i, j) for (int (i)=0; (i)<CHUNK_W; ++(i)) { for (int (j)=0; (j)<CHUNK_L; ++(j))
-#define end_xy() }
-
 struct int3;
 
 inline void tobase36(int from, char to[]);

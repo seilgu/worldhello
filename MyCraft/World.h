@@ -20,7 +20,8 @@ public:
 		gravity = -9.8f;
 		dt = 0.001f;
 	}
-	~World() {}
+	~World() {
+	}
 
 	int LoadWorld();
 	void UpdateWorld();
@@ -29,8 +30,7 @@ public:
 	void RemoveBlock(int3 chkId, int3 offset);
 
 	chunk_list *GetRenderChunks(float3 pos, float3 dir);
-	
-	// Rendering
+
 
 	Map world_map;
 };

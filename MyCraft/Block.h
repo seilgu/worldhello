@@ -21,15 +21,15 @@ public:
 	unsigned short type;
 	unsigned short outside;
 	unsigned short data;
+	unsigned short active:1;
 	unsigned short modified:1;
-	unsigned short hidden:1;
 	unsigned short opaque:1;
 	unsigned short translucent:1;
 
-
 	Block() {
 		modified = 0;
-		hidden = 0;
+		outside = 0;
+		active = 0;
 		opaque = 0;
 		translucent = 0;
 		type = Block::NUL;
@@ -40,9 +40,12 @@ public:
 		if (t != type) {
 			type = t;
 			modified = 1;
+			outside = 0;
+			active = 1;
+			data = 0;
+
 			opaque = 1;
 			translucent = 0;
-
 			if (t == NUL || t == GLASS)
 				opaque = 0;
 			if (t == GLASS)

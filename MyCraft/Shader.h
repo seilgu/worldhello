@@ -142,7 +142,7 @@ private:
 				{
 					infoLog = (char *)malloc(infologLength);
 					glGetProgramInfoLog(program, infologLength, &charsWritten, infoLog);
-					MessageBox(0, infoLog, "HAAHA", 0);
+					MessageBox(0, infoLog, "Shader Loading Error", 0);
 					free(infoLog);
 				}
 			}

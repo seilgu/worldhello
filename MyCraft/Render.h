@@ -59,9 +59,11 @@ extern class TextureMgr *s_Texture;
 struct render_chunk {
 	int3 id;
 	GLuint vbo;
-	int num_faces;
+	GLuint vbo_water;
 	int vbo_size;
+	int vbo_size_water;
 	GLfloat *vertices;
+	GLfloat *verticeswater;
 	unsigned short loaded:1;
 	unsigned short failed:1;
 	unsigned short unneeded:1;
@@ -116,13 +118,10 @@ public :
 	void DiscardUnneededChunks(float3 pos, float3 dir, World *world);
 	// Draw to screen
 	void DrawScene(float3 pos, float3 dir, float dist, World* world, int look, int bind);
-	void DrawScene0(float3 pos, float3 dir, float dist, World* world);
-	void RenderChunk(render_chunk *tmp, float3 pos, float3 dir);
-	void RenderChunk0(map_chunk *chk, float3 pos, float3 dir);
-	void DrawFaceSimple(int i, int j, int k, int type, int dir);
+	void RenderChunk(render_chunk *tmp, float3 pos, float3 dir, int water);
 	void PrintChunkStatistics(char *buffer);
 	static void GetTextureCoordinates(short int type, int dir, float2 &dst);
-	void GenerateVBOArray(GLfloat *vertices, Block *blocks);
+	void GenerateVBOArray(GLfloat *vertices, Block *blocks, int water);
 
 	int FindBlock(float3 pos, float3 dir, int depth, int3 &id, int3 &offset, int &side);
 

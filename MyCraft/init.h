@@ -161,121 +161,6 @@ GLvoid glPrint(const char *fmt, ...) {					// Custom GL "Print" Routine
 
 #endif
 
-GLuint blockDisplayList;
-void CompileDisplayLists() {
-	blockDisplayList = glGenLists(256);
-
-	// 256 types of blocks, not textures
-	for (int i=0; i<256; i++) {
-		glNewList(blockDisplayList + i, GL_COMPILE);
-		
-		GLuint side_texture;
-
-		for (int w=0; w<6; w++) {
-			switch (i) {
-			case Block::CRATE: // Draw a crate
-				side_texture = TextureMgr::CRATE;
-				break;
-			case Block::GRASS:
-				switch (w) {
-				case Render::PZ: side_texture = TextureMgr::GRASS_TOP; break;
-				case Render::NZ: side_texture = TextureMgr::GRASS_BUTTOM; break;
-				default: side_texture = TextureMgr::GRASS_SIDE; break;
-				}
-				break;
-			case Block::SOIL:
-				side_texture = TextureMgr::SOIL;
-				break;
-			case Block::STONE:
-				side_texture = TextureMgr::STONE;
-				break;
-			case Block::GOLD_MINE:
-				side_texture = TextureMgr::GOLD_MINE;
-				break;
-			case Block::COAL_MINE:
-				side_texture = TextureMgr::COAL_MINE;
-				break;
-			case Block::COAL:
-				side_texture = TextureMgr::COAL;
-				break;
-			case Block::SAND:
-				side_texture = TextureMgr::SAND;
-				break;
-			case Block::GLASS:
-				side_texture = TextureMgr::GLASS;
-				break;
-			case Block::LAVA:
-				side_texture = TextureMgr::LAVA;
-				break;
-			case Block::SNOW:
-				switch (w) {
-				case Render::PZ: side_texture = TextureMgr::SNOW_TOP; break;
-				case Render::NZ: side_texture = TextureMgr::SNOW_BUTTOM; break;
-				default: side_texture = TextureMgr::SNOW_SIDE; break;
-				}
-				break;
-			default: break;
-			}
-
-			float2 coord;
-			float csize = 1/16.0f;
-			coord = get_texture_coord(side_texture);
-
-			glBegin(GL_QUADS);
-			switch (w) {
-			case Render::PZ: // top
-				glTexCoord2f(coord.x, coord.y);				glVertex3f(0.0f, 0.0f, 1.0f);
-				glTexCoord2f(coord.x+csize, coord.y);		glVertex3f(1.0f, 0.0f, 1.0f);
-				glTexCoord2f(coord.x+csize, coord.y+csize); glVertex3f(1.0f, 1.0f, 1.0f);
-				glTexCoord2f(coord.x, coord.y+csize);		glVertex3f(0.0f, 1.0f, 1.0f);
-				break;
-			case Render::NZ: // buttom
-				glTexCoord2f(coord.x, coord.y);				glVertex3f(1.0f, 0.0f, 0.0f);
-				glTexCoord2f(coord.x+csize, coord.y);		glVertex3f(0.0f, 0.0f, 0.0f);
-				glTexCoord2f(coord.x+csize, coord.y+csize); glVertex3f(0.0f, 1.0f, 0.0f);
-				glTexCoord2f(coord.x, coord.y+csize);		glVertex3f(1.0f, 1.0f, 0.0f);
-				break;
-			case Render::PY: // +y
-				glTexCoord2f(coord.x, coord.y);				glVertex3f(1.0f, 1.0f, 0.0f);
-				glTexCoord2f(coord.x+csize, coord.y);		glVertex3f(0.0f, 1.0f, 0.0f);
-				glTexCoord2f(coord.x+csize, coord.y+csize);	glVertex3f(0.0f, 1.0f, 1.0f);
-				glTexCoord2f(coord.x, coord.y+csize);		glVertex3f(1.0f, 1.0f, 1.0f);
-				break;
-			case Render::NY: // -y
-				glTexCoord2f(coord.x, coord.y);				glVertex3f(0.0f, 0.0f, 0.0f);
-				glTexCoord2f(coord.x+csize, coord.y);		glVertex3f(1.0f, 0.0f, 0.0f);
-				glTexCoord2f(coord.x+csize, coord.y+csize);	glVertex3f(1.0f, 0.0f, 1.0f);
-				glTexCoord2f(coord.x, coord.y+csize);		glVertex3f(0.0f, 0.0f, 1.0f);
-				break;
-			case Render::PX: // +x
-				glTexCoord2f(coord.x, coord.y);				glVertex3f(1.0f, 0.0f, 0.0f);
-				glTexCoord2f(coord.x+csize, coord.y);		glVertex3f(1.0f, 1.0f, 0.0f);
-				glTexCoord2f(coord.x+csize, coord.y+csize);	glVertex3f(1.0f, 1.0f, 1.0f);
-				glTexCoord2f(coord.x, coord.y+csize);		glVertex3f(1.0f, 0.0f, 1.0f);
-				break;
-			case Render::NX: // -x
-				glTexCoord2f(coord.x, coord.y);				glVertex3f(0.0f, 0.0f, 0.0f);
-				glTexCoord2f(coord.x, coord.y+csize);		glVertex3f(0.0f, 0.0f, 1.0f);
-				glTexCoord2f(coord.x+csize, coord.y+csize); glVertex3f(0.0f, 1.0f, 1.0f);
-				glTexCoord2f(coord.x+csize, coord.y);		glVertex3f(0.0f, 1.0f, 0.0f);
-				break;
-			}
-			glEnd();
-		}
-		glEndList();
-	}
-}
-
-void DeleteDisplayLists() {
-	glDeleteLists(blockDisplayList, 256);
-}
-
-/*
-MATRIX4X4 cameraProjectionMatrix;
-MATRIX4X4 lightProjectionMatrix;
-MATRIX4X4 cameraViewMatrix;
-MATRIX4X4 lightViewMatrix;
-*/
 GLvoid ReSizeGLScene(GLsizei width, GLsizei height)		// Resize And Initialize The GL Window
 {
 	if (height==0)										// Prevent A Divide By Zero By
@@ -292,6 +177,11 @@ GLvoid ReSizeGLScene(GLsizei width, GLsizei height)		// Resize And Initialize Th
 	glLoadIdentity();									// Reset The Modelview Matrix
 }
 
+GLfloat LightAmbient[]= { 0.8f, 0.8f, 0.8f, 1.0f };
+GLfloat LightDiffuse[]= { 1.0f, 1.0f, 1.0f, 1.0f };
+GLfloat LightSpecular[]= { 0.0f, 0.0f, 0.0f, 1.0f };
+GLfloat LightPosition[]= { 20.0f, 20.0f, 80.0f, 1.0f };
+
 BOOL InitGL()
 {
 	glShadeModel(GL_SMOOTH);							// Enable Smooth Shading
@@ -300,15 +190,41 @@ BOOL InitGL()
 	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
 
 	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
 	glEnable(GL_TEXTURE_2D);
+
+	glLightfv(GL_LIGHT0, GL_AMBIENT, LightAmbient);
+	glLightfv(GL_LIGHT0, GL_DIFFUSE, LightDiffuse);
+	glLightfv(GL_LIGHT0, GL_POSITION, LightPosition);
+	glLightfv(GL_LIGHT0, GL_SPECULAR, LightSpecular);
+	glEnable(GL_LIGHT0);
+
+	glEnable(GL_LIGHTING);
+	glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, 0);
 	
-	//glEnable(GL_LINE_SMOOTH);
-	//glEnable(GL_POINT_SMOOTH);
+	glEnable(GL_COLOR_MATERIAL);
+	glColorMaterial(GL_FRONT,GL_DIFFUSE);
+
+	float black[4]={0,0,0,0};
+	float red[4]={1,0,0,0};
+	float white[4]={1,1,1,0};
+	float grey[4]={0.5,0.5,0.5,0};
+	float darkgrey[4]={0.25,0.25,0.25,0};
+
+	//glMaterialfv(GL_FRONT,GL_DIFFUSE,white);
+	glMaterialfv(GL_FRONT,GL_AMBIENT,darkgrey);
+	//glMaterialfv(GL_FRONT,GL_SPECULAR,white);
+	
+	
+
+	glEnable(GL_LINE_SMOOTH);
+	glEnable(GL_POINT_SMOOTH);
 	glEnable(GL_DEPTH_TEST); // required for smooth lines!
 	glClearDepth(1.0f);									// Depth Buffer Setup
 	glDepthFunc(GL_LEQUAL);
 	glEnable(GL_DEPTH_TEST);
-	//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	
 	//glEnable(GL_CULL_FACE);
 	//glCullFace(GL_BACK);
 
@@ -458,11 +374,11 @@ Shader *s_Shader;
 
 void InitClasses() {
 	s_File = new FileMgr();
-	s_Render = new Render(supportVBO);
 	s_World = new World();
-	s_Texture = new TextureMgr();
-	m_Player = new Player();
 	s_Shader = new Shader();
+	s_Texture = new TextureMgr();
+	s_Render = new Render(supportVBO);
+	m_Player = new Player();
 }
 
 void DeInitClasses() {
@@ -472,12 +388,12 @@ void DeInitClasses() {
 		delete s_World;
 	if (s_Texture != 0)
 		delete s_Texture;
-	if (m_Player != 0)
-		delete m_Player;
 	if (s_File != 0)
 		delete s_File;
 	if (s_Shader != 0)
 		delete s_Shader;
+	if (m_Player != 0)
+		delete m_Player;
 
 	s_Render = 0;
 	s_World = 0;
